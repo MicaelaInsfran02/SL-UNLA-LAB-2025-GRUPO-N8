@@ -10,8 +10,15 @@ engine = create_engine('sqlite:///database.db', echo=True)
 # Declarar la base
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
-# declaro las clases
 
+def get_db():
+    db = Session()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# declaro las clases
 
 class Persona(Base):
     __tablename__ = 'personas'
@@ -52,7 +59,7 @@ class Contacto(Base):
     persona = relationship("Persona", back_populates="contacto")
 
 
-#if __name__ == "__main__":
+if __name__ == "__main__":
 
     # Creo las tablas que declare mas arriba, solo si no existen
     Base.metadata.create_all(engine)
@@ -82,9 +89,5 @@ class Contacto(Base):
     session.add(nuevo_contacto)
 
     #una vez que hago el commit subo los cambios a la base, siempre es un solo commit por archivo
-    #(voy a tener un archivo por transsacion, ejemplo uno para eliminar, otro modificar, etc)
+    #(voy a tener un archivo por transaccion, ejemplo uno para eliminar, otro modificar, etc)
     session.commit()
-
-    # Consultar personas
-    #for persona in session.query(Persona).all():
-    # print(persona.nombre, persona.edad)

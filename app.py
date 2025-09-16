@@ -4,6 +4,8 @@ from database import get_db, Persona, Contacto, Turno
 from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from datetime import date
+from sqlalchemy.exc import SQLAlchemyError
 
 app = FastAPI()
 
@@ -14,11 +16,12 @@ app = FastAPI()
 @app.get("/personas")
 def listar_personas(db: Session = Depends(get_db)):
     personas = db.query(Persona).all()
+
     return [
         {
             "id": p.id,
             "nombre": p.nombre,
-            "edad": p.edad,
+            "edad": calcular_edad(p.fecha_nacimiento),
             "dni": p.dni,
             "fecha_nacimiento": str(p.fecha_nacimiento),
             "habilitado": p.habilitado
@@ -55,9 +58,10 @@ def crear_persona(datos: PersonaIn, db: Session = Depends(get_db)):
     try:
         db.commit()
         db.refresh(persona)
-    except:
+    except SQLAlchemyError as e:
+
         db.rollback()
-        raise HTTPException(status_code=400, detail="Error al crear la persona")
+        raise HTTPException(status_code=400, detail=f"Error al crear la persona: {str(e)}")
 
     return persona
 
@@ -79,11 +83,27 @@ def crear_contacto(datos: ContactoIn, db: Session = Depends(get_db)):
     try:
         db.commit()
         db.refresh(contacto)
-    except:
+    except SQLAlchemyError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Error al crear el contacto")
+        raise HTTPException(status_code=400, detail=f"Error al crear la persona: {str(e)}")
 
     return contacto
+
+#eliminar una persona 
+@app.delete("/personas/{persona_id}", status_code=status.HTTP_200_OK)
+def eliminar_persona(persona_id: int, db: Session = Depends(get_db)):
+    persona = db.query(Persona).filter(Persona.id == persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
+
+    db.delete(persona)
+    db.commit()
+
+    return {"mensaje": f"La persona con ID {persona_id} fue eliminada correctamente."}
+
+
+
+
 
 #capturamos error de mail y lanzamos mensaje personalizado
 @app.exception_handler(RequestValidationError)
@@ -105,3 +125,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+#función calcular edad
+def calcular_edad(fecha_nacimiento: date) -> int:
+    hoy = date.today()
+    return hoy.year - fecha_nacimiento.year - (
+        #Esto devuelve  (que equivale a ) si todavía no cumplió años este año, y  () si ya los cumplió.
+        (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day)
+    )

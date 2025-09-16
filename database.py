@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, ForeignKey, Time
 from datetime import date
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.orm import relationship
@@ -25,12 +25,12 @@ class Persona(Base):
     # atributos de la tabla personas
     id = Column(Integer, primary_key=True)
     nombre = Column(String, nullable=False)
-    edad = Column(Integer, nullable=False)
     dni = Column(Integer, unique=True, nullable=False)
     fecha_nacimiento = Column(Date, nullable=False)
     habilitado = Column(Boolean, default=True, nullable=False)
-    # relacion con la tabla contacto
-    contacto = relationship("Contacto", back_populates="persona", uselist=False)
+    # relacion con la tabla contacto, si se elimina la persona se elimina el contacto 
+    contacto = relationship(
+    "Contacto", back_populates="persona", uselist=False, cascade="all, delete-orphan" )
     # relacion con la tabla turno
     turno = relationship("Turno", back_populates="persona", uselist=False)
 
@@ -39,7 +39,7 @@ class Turno(Base):
     __tablename__ = 'turnos'
     id = Column(Integer, primary_key=True)
     fecha = Column(Date, nullable=False)
-    hora = Column(Integer, nullable=False)
+    hora = Column(Time, nullable=False)
     estado = Column(String, nullable=False)
     persona = Column(String, nullable=False)
     # relacion con la tabla persona (primero se crea la persona y despues el turno)
@@ -55,7 +55,7 @@ class Contacto(Base):
     direccion = Column(String, nullable=False)
     localidad = Column(String, nullable=False)
     # relacion con la tabla persona (primero se crea la persona y despues el contacto)
-    persona_id = Column(Integer, ForeignKey('personas.id'))
+    persona_id = Column(Integer, ForeignKey("personas.id", ondelete="CASCADE"), nullable=False)
     persona = relationship("Persona", back_populates="contacto")
 
 
@@ -69,7 +69,6 @@ if __name__ == "__main__":
     # Agregar una persona
     nueva_persona = Persona(
         nombre="Lucía Fernández",
-        edad=22,
         dni=11111111,
         fecha_nacimiento= date(2004, 5, 30),
         habilitado=True

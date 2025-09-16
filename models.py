@@ -4,16 +4,14 @@ from datetime import date
 # Entrada (POST/PUT)
 class PersonaIn(BaseModel):
     nombre: str
-    edad: int
     dni: int
     fecha_nacimiento: date
-    habilitado: bool = True
+    habilitado: bool 
 
 # Salida (GET)
 class PersonaOut(BaseModel):
     id: int
     nombre: str
-    edad: int
     dni: int
     fecha_nacimiento: date
     habilitado: bool

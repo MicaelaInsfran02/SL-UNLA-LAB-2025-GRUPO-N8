@@ -6,10 +6,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from datetime import date
 from sqlalchemy.exc import SQLAlchemyError
+from models import TurnoIn, TurnoOut
+from datetime import datetime, timedelta
+from sqlalchemy import and_
+
+
 
 app = FastAPI()
-
-
 
 #lo probamos con http://localhost:8000/personas en el navegador
 #obtener todas las personas
@@ -101,10 +104,6 @@ def eliminar_persona(persona_id: int, db: Session = Depends(get_db)):
 
     return {"mensaje": f"La persona con ID {persona_id} fue eliminada correctamente."}
 
-
-
-
-
 #capturamos error de mail y lanzamos mensaje personalizado
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -132,3 +131,60 @@ def calcular_edad(fecha_nacimiento: date) -> int:
         #Esto devuelve  (que equivale a ) si todavía no cumplió años este año, y  () si ya los cumplió.
         (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day)
     )
+
+#POST turnos.
+@app.post("/turnos", response_model=TurnoOut, status_code=status.HTTP_201_CREATED)
+def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
+    # validamos que la persona exista
+    persona = db.query(Persona).filter(Persona.id == datos.persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
+
+    #calculo fecha limite ultimos 6 meses.
+    seis_meses_atras = datetime.today() - timedelta(days=180)
+
+    #contador de turnos cancelados en ese período de 6 meses / utilizando and_ de sqlalchemy para que cuente cuando todas las condiciones se cumplan.
+    cancelados = db.query(Turno).filter(
+        and_(
+            Turno.persona_id == persona.id,
+            Turno.estado == "cancelado",
+            Turno.fecha >= seis_meses_atras.date()
+        )
+    ).count()
+
+    if cancelados >= 5:
+        raise HTTPException(
+            status_code=400,
+            detail="La persona tiene 5 o más turnos cancelados en los últimos 6 meses"
+        )
+
+    # Crear el turno con estado pendiente
+    nuevo_turno = Turno(
+        fecha=datos.fecha,
+        hora=datos.hora,
+        estado="pendiente",
+        persona_id=persona.id
+    )
+
+    db.add(nuevo_turno)
+    try:
+        db.commit()
+        db.refresh(nuevo_turno)
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al crear el turno: {str(e)}")
+
+    return nuevo_turno
+
+#GET listar todos los turnos.
+@app.get("/turnos", response_model=list[TurnoOut])
+def listar_turnos(db: Session = Depends(get_db)):
+    turnos = db.query(Turno).all()
+    return turnos
+#GET turnos por id.
+@app.get("/turnos/{turno_id}", response_model=TurnoOut)
+def obtener_turno(turno_id: int, db: Session = Depends(get_db)):
+    turno = db.query(Turno).filter(Turno.id == turno_id).first()
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    return turno

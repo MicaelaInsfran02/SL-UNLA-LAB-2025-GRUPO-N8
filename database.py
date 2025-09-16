@@ -41,7 +41,6 @@ class Turno(Base):
     fecha = Column(Date, nullable=False)
     hora = Column(Time, nullable=False)
     estado = Column(String, nullable=False)
-    persona = Column(String, nullable=False)
     # relacion con la tabla persona (primero se crea la persona y despues el turno)
     persona_id = Column(Integer, ForeignKey('personas.id'))
     persona = relationship("Persona", back_populates="turno")

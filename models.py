@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from datetime import date
+from datetime import date, time
 
 # Entrada (POST/PUT)
 class PersonaIn(BaseModel):
@@ -41,15 +41,15 @@ class ContactoOut(BaseModel):
 # Entrada
 class TurnoIn(BaseModel):
     fecha: date
-    hora: int
-    estado: str
-
-# Salida
+    hora: time
+    persona_id: int
+# Salida 
 class TurnoOut(BaseModel):
     id: int
     fecha: date
-    hora: int
+    hora: time
     estado: str
+    persona_id: int
 
     class Config:
         orm_mode = True

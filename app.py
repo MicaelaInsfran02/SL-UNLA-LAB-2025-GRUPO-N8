@@ -188,3 +188,33 @@ def obtener_turno(turno_id: int, db: Session = Depends(get_db)):
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
     return turno
+
+# DELETE turno por ID
+@app.delete("/turnos/{turno_id}", status_code=status.HTTP_200_OK)
+def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
+    turno = db.query(Turno).filter(Turno.id == turno_id).first()
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    try:
+        db.delete(turno)
+        db.commit()
+        return {"mensaje": f"El turno con ID {turno_id} fue eliminado correctamente."}
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al eliminar el turno: {str(e)}"
+        )
+
+# eliminar un turno
+@app.delete("/turnos/{turno_id}", status_code=status.HTTP_200_OK)
+def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
+    turno = db.query(Turno).filter(Turno.id == turno_id).first()
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    db.delete(turno)
+    db.commit()
+
+    return {"mensaje": f"El turno con ID {turno_id} fue eliminado correctamente."}

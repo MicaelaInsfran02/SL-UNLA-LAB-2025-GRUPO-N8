@@ -134,6 +134,30 @@ def crear_contacto(datos: ContactoIn, db: Session = Depends(get_db)):
 
     return contacto
 
+#actualizar un contacto
+@app.put("/contactos/{contacto_id}", status_code=status.HTTP_200_OK)
+def actualizar_contacto(contacto_id: int, datos: ContactoIn, db: Session = Depends(get_db)):
+    contacto = db.query(Contacto).filter(Contacto.id == contacto_id).first()
+
+    if not contacto:
+        raise HTTPException(status_code=404, detail=f"No se encontró el contacto con id: {contacto_id}")
+
+    persona = db.query(Persona).filter(Persona.id == datos.persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail=f"No se encontró la persona con id: {datos.persona_id}")
+
+    for campo, valor in datos.dict().items():
+        setattr(contacto, campo, valor)
+
+    try:
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al actualizar el contacto: {str(e)}")
+
+    return {"mensaje": f"Contacto con id {contacto_id} actualizado correctamente"}
+
+
 #eliminar una persona 
 @app.delete("/personas/{persona_id}", status_code=status.HTTP_200_OK)
 def eliminar_persona(persona_id: int, db: Session = Depends(get_db)):

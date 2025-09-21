@@ -135,21 +135,38 @@ def calcular_edad(fecha_nacimiento: date) -> int:
 #POST turnos.
 @app.post("/turnos", response_model=TurnoOut, status_code=status.HTTP_201_CREATED)
 def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
-    # validamos que la persona exista
+    #Valido que la persona exista.
     persona = db.query(Persona).filter(Persona.id == datos.persona_id).first()
     if not persona:
         raise HTTPException(status_code=404, detail="Persona no encontrada")
 
-    #calculo fecha limite ultimos 6 meses.
-    seis_meses_atras = datetime.today() - timedelta(days=180)
+    #Valido que la fecha no sea en fechas pasadas.
+    if datos.fecha < date.today():
+        raise HTTPException(status_code=400, detail="No se pueden sacar turnos en fechas pasadas")
 
-    #contador de turnos cancelados en ese período de 6 meses / utilizando and_ de sqlalchemy para que cuente cuando todas las condiciones se cumplan.
+    #Valido que el horario esté dentro del rango permitido (09:00 a 17:00).
+    if not (time(9, 0) <= datos.hora <= time(17, 0)):
+        raise HTTPException(status_code=400, detail="Horario fuera del rango permitido (09:00–17:00)")
+
+    #Valido que el horario esté en intervalos de 30 minutos.
+    if datos.hora.minute not in [0, 30]:
+        raise HTTPException(status_code=400, detail="Los turnos deben ser en intervalos de 30 minutos")
+
+    #Valido que no exista otro turno en el mismo día y horario.
+    turno_existente = db.query(Turno).filter(
+        Turno.fecha == datos.fecha,
+        Turno.hora == datos.hora
+    ).first()
+
+    if turno_existente:
+        raise HTTPException(status_code=400, detail="Ya existe un turno en ese día y horario")
+
+    #Valido cancelaciones en los últimos 6 meses.
+    seis_meses_atras = datetime.today() - timedelta(days=180)
     cancelados = db.query(Turno).filter(
-        and_(
-            Turno.persona_id == persona.id,
-            Turno.estado == "cancelado",
-            Turno.fecha >= seis_meses_atras.date()
-        )
+        Turno.persona_id == persona.id,
+        Turno.estado == "cancelado",
+        Turno.fecha >= seis_meses_atras.date()
     ).count()
 
     if cancelados >= 5:
@@ -158,7 +175,7 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
             detail="La persona tiene 5 o más turnos cancelados en los últimos 6 meses"
         )
 
-    # Crear el turno con estado pendiente
+    #Crear el turno con estado "pendiente".
     nuevo_turno = Turno(
         fecha=datos.fecha,
         hora=datos.hora,
@@ -181,6 +198,7 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
 def listar_turnos(db: Session = Depends(get_db)):
     turnos = db.query(Turno).all()
     return turnos
+
 #GET turnos por id.
 @app.get("/turnos/{turno_id}", response_model=TurnoOut)
 def obtener_turno(turno_id: int, db: Session = Depends(get_db)):
@@ -188,7 +206,30 @@ def obtener_turno(turno_id: int, db: Session = Depends(get_db)):
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
     return turno
+  
+#GET fecha/horarios disponibles.
+@app.get("/turnos-disponibles")
+def turnos_disponibles(fecha: date, db: Session = Depends(get_db)):
+    # Generar horarios posibles entre 09:00 y 17:00 en intervalos de 30 minutos
+    horarios_posibles = []
+    hora_actual = datetime.combine(fecha, time(9, 0))
+    fin = datetime.combine(fecha, time(17, 0))
 
+    while hora_actual <= fin:
+        horarios_posibles.append(hora_actual.time())
+        hora_actual += timedelta(minutes=30)
+
+    #Obtener horarios ocupados (excepto cancelados).
+    turnos_ocupados = db.query(Turno.hora).filter(
+        Turno.fecha == fecha,
+        Turno.estado != "cancelado"
+    ).all()
+
+    horarios_ocupados = {t.hora for t in turnos_ocupados}
+    disponibles = [str(h) for h in horarios_posibles if h not in horarios_ocupados]
+
+    return {"fecha": str(fecha), "horarios_disponibles": disponibles}
+  
 # DELETE turno por ID
 @app.delete("/turnos/{turno_id}", status_code=status.HTTP_200_OK)
 def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
@@ -207,14 +248,3 @@ def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
             detail=f"Error al eliminar el turno: {str(e)}"
         )
 
-# eliminar un turno
-@app.delete("/turnos/{turno_id}", status_code=status.HTTP_200_OK)
-def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
-    turno = db.query(Turno).filter(Turno.id == turno_id).first()
-    if not turno:
-        raise HTTPException(status_code=404, detail="Turno no encontrado")
-
-    db.delete(turno)
-    db.commit()
-
-    return {"mensaje": f"El turno con ID {turno_id} fue eliminado correctamente."}

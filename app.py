@@ -32,6 +32,21 @@ def listar_personas(db: Session = Depends(get_db)):
         for p in personas
     ]
 
+#obtener persona por id
+@app.get("/personas/{persona_id}")
+def obtener_persona(persona_id: int, db: Session = Depends(get_db)):
+    persona = db.query(Persona).filter(Persona.id == persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
+    return {
+        "id": persona.id,
+        "nombre": persona.nombre,
+        "edad": calcular_edad(persona.fecha_nacimiento),
+        "dni": persona.dni,
+        "fecha_nacimiento": str(persona.fecha_nacimiento),
+        "habilitado": persona.habilitado
+    }
+
 #obtener todos los contactos
 @app.get("/contactos")
 def listar_contactos(db: Session = Depends(get_db)):

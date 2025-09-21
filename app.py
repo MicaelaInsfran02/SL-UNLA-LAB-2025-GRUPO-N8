@@ -157,6 +157,22 @@ def actualizar_contacto(contacto_id: int, datos: ContactoIn, db: Session = Depen
 
     return {"mensaje": f"Contacto con id {contacto_id} actualizado correctamente"}
 
+#eliminar un contacto
+@app.delete("/contactos/{contacto_id}", status_code=status.HTTP_200_OK)
+def eliminar_contacto(contacto_id: int, db: Session = Depends(get_db)):
+    contacto = db.query(Contacto).filter(Contacto.id == contacto_id).first()
+
+    if not contacto:
+        raise HTTPException(status_code=404, detail=f"No se encontró el contacto con id: {contacto_id}")
+
+    try:
+        db.delete(contacto)
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al eliminar el contacto: {str(e)}")
+
+    return {"mensaje": f"Contacto con id {contacto_id} eliminado correctamente"}
 
 #eliminar una persona 
 @app.delete("/personas/{persona_id}", status_code=status.HTTP_200_OK)

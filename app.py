@@ -47,6 +47,33 @@ def obtener_persona(persona_id: int, db: Session = Depends(get_db)):
         "habilitado": persona.habilitado
     }
 
+#actualizar persona por id
+@app.put("/personas/{persona_id}")
+def actualizar_persona(persona_id: int, datos: PersonaIn, db: Session = Depends(get_db)):
+    persona = db.query(Persona).filter(Persona.id == persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
+    # actualizar los campos
+    persona.nombre = datos.nombre
+    persona.dni = datos.dni
+    persona.fecha_nacimiento = datos.fecha_nacimiento
+    persona.habilitado = datos.habilitado
+    try:
+        db.commit()
+        db.refresh(persona)
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al actualizar la persona: {str(e)}")
+    # devolver de la misma forma que listar_personas
+    return {
+        "id": persona.id,
+        "nombre": persona.nombre,
+        "edad": calcular_edad(persona.fecha_nacimiento),
+        "dni": persona.dni,
+        "fecha_nacimiento": str(persona.fecha_nacimiento),
+        "habilitado": persona.habilitado
+    }
+
 #obtener todos los contactos
 @app.get("/contactos")
 def listar_contactos(db: Session = Depends(get_db)):

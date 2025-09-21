@@ -4,7 +4,7 @@ from database import get_db, Persona, Contacto, Turno
 from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from datetime import date
+from datetime import date, time
 from sqlalchemy.exc import SQLAlchemyError
 from models import TurnoIn, TurnoOut
 from datetime import datetime, timedelta
@@ -235,6 +235,8 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
 
     return nuevo_turno
 
+
+
 #GET listar todos los turnos.
 @app.get("/turnos", response_model=list[TurnoOut])
 def listar_turnos(db: Session = Depends(get_db)):
@@ -272,6 +274,61 @@ def turnos_disponibles(fecha: date, db: Session = Depends(get_db)):
 
     return {"fecha": str(fecha), "horarios_disponibles": disponibles}
   
+# actualizar turno por id PUT /turnos/{turno_id}
+@app.put("/turnos/{turno_id}")
+def actualizar_turno(turno_id: int, datos: TurnoIn, db: Session = Depends(get_db)):
+    turno = db.query(Turno).filter(Turno.id == turno_id).first()
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    # no permitir cambios si ya está cancelado o asistido
+    if turno.estado in ("cancelado", "asistido"):
+        raise HTTPException(status_code=400, detail="No se puede modificar un turno cancelado o asistido")
+
+    # validar que la persona indicada exista
+    persona = db.query(Persona).filter(Persona.id == datos.persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
+
+    # Validar rango horario (09:00 - 17:00)
+    if not (time(9, 0) <= datos.hora <= time(17, 0)):
+        raise HTTPException(status_code=400, detail="Horario fuera del rango permitido (09:00–17:00)")
+
+    # Validar intervalos de 30 minutos
+    if datos.hora.minute not in (0, 30):
+        raise HTTPException(status_code=400, detail="Los turnos deben ser en intervalos de 30 minutos")
+
+    # Buscar otro turno en la misma fecha/hora que no sea 'cancelado' y que no sea este turno para evitar un solapamiento
+    conflicto = db.query(Turno).filter(
+        Turno.fecha == datos.fecha,
+        Turno.hora == datos.hora,
+        Turno.id != turno.id,
+        Turno.estado != "cancelado"
+    ).first()
+
+    if conflicto:
+        raise HTTPException(status_code=400, detail="El horario solicitado está ocupado por otro turno")
+
+    # Aplicar cambios
+    turno.fecha = datos.fecha
+    turno.hora = datos.hora
+    turno.persona_id = datos.persona_id
+
+    try:
+        db.commit()
+        db.refresh(turno)
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al actualizar el turno: {str(e)}")
+
+    return {
+        "id": turno.id,
+        "fecha": str(turno.fecha),
+        "hora": str(turno.hora),
+        "estado": turno.estado,
+        "persona_id": turno.persona_id
+    }
+
 # DELETE turno por ID
 @app.delete("/turnos/{turno_id}", status_code=status.HTTP_200_OK)
 def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):

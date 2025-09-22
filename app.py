@@ -387,3 +387,10 @@ def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
             detail=f"Error al eliminar el turno: {str(e)}"
         )
 
+# GET contacto por ID
+@app.get("/contactos/{contacto_id}", response_model=ContactoOut)
+def obtener_contacto(contacto_id: int, db: Session = Depends(get_db)):
+    contacto = db.query(Contacto).filter(Contacto.id == contacto_id).first()
+    if not contacto:
+        raise HTTPException(status_code=404, detail="Contacto no encontrado")
+    return contacto

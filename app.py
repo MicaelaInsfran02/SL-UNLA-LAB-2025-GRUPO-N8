@@ -14,6 +14,22 @@ from sqlalchemy import and_
 
 app = FastAPI()
 
+#Generar horarios disponibles, rango (9-17), intervalo de 30 min.
+def generar_horarios_posibles():
+    inicio = time(9, 0)
+    fin = time(17, 0)
+    horarios = []
+    hora_actual = datetime.combine(date.today(), inicio)
+    limite = datetime.combine(date.today(), fin)
+
+    while hora_actual <= limite:
+        horarios.append(hora_actual.time())
+        hora_actual += timedelta(minutes=30)
+
+    return horarios
+
+HORARIOS_POSIBLES = generar_horarios_posibles()
+
 #lo probamos con http://localhost:8000/personas en el navegador
 #obtener todas las personas
 @app.get("/personas")
@@ -223,9 +239,6 @@ def eliminar_persona(persona_id: int, db: Session = Depends(get_db)):
 
     return {"mensaje": f"La persona con ID {persona_id} fue eliminada correctamente."}
 
-
-
-
 #función calcular edad
 def calcular_edad(fecha_nacimiento: date) -> int:
     hoy = date.today()
@@ -294,8 +307,6 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
 
     return nuevo_turno
 
-
-
 #GET listar todos los turnos.
 @app.get("/turnos", response_model=list[TurnoOut])
 def listar_turnos(db: Session = Depends(get_db)):
@@ -309,27 +320,17 @@ def obtener_turno(turno_id: int, db: Session = Depends(get_db)):
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
     return turno
-  
+
 #GET fecha/horarios disponibles.
 @app.get("/turnos-disponibles")
 def turnos_disponibles(fecha: date, db: Session = Depends(get_db)):
-    # Generar horarios posibles entre 09:00 y 17:00 en intervalos de 30 minutos
-    horarios_posibles = []
-    hora_actual = datetime.combine(fecha, time(9, 0))
-    fin = datetime.combine(fecha, time(17, 0))
-
-    while hora_actual <= fin: #arreglar
-        horarios_posibles.append(hora_actual.time())
-        hora_actual += timedelta(minutes=30)
-
-    #Obtener horarios ocupados (excepto cancelados).
     turnos_ocupados = db.query(Turno.hora).filter(
         Turno.fecha == fecha,
         Turno.estado != "cancelado"
     ).all()
 
     horarios_ocupados = {t.hora for t in turnos_ocupados}
-    disponibles = [str(h) for h in horarios_posibles if h not in horarios_ocupados]
+    disponibles = [str(h) for h in HORARIOS_POSIBLES if h not in horarios_ocupados]
 
     return {"fecha": str(fecha), "horarios_disponibles": disponibles}
   

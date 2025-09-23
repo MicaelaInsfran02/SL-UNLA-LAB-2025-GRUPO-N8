@@ -4,7 +4,7 @@ Gastón Madeo
 Rodrigo Emanuel Sanchez
 Manuel Shocron
 
-Enlace al vídeo: https://drive.google.com/drive/folders/1mTIaz2h3PuNo7JZDkSKzSBnjYAwAM1o_
+Enlace al vídeo: https://drive.google.com/drive/folders/1mTIaz2h3PuNo7JZDkSKzSBnjYAwAM1o_?usp=sharing
 Enlace a postman: https://rodridev22-215338.postman.co/workspace/Rodrigo-Sanchez's-Workspace~52e74b2b-410f-4ef0-8975-f2b0cbe860e8/collection/48652798-15125a2a-4a8c-4703-a7d7-5b3c21ebf490?action=share&creator=48652798
 Enlace al repositorio GIT: https://github.com/MicaelaInsfran02/SL-UNLA-LAB-2025-GRUPO-N8
 

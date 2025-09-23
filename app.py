@@ -1,8 +1,8 @@
+import re
 from fastapi import FastAPI , Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from database import get_db, Persona, Contacto, Turno
 from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from datetime import date, time
 from sqlalchemy.exc import SQLAlchemyError
@@ -53,11 +53,25 @@ def actualizar_persona(persona_id: int, datos: PersonaIn, db: Session = Depends(
     persona = db.query(Persona).filter(Persona.id == persona_id).first()
     if not persona:
         raise HTTPException(status_code=404, detail="Persona no encontrada")
+    
+    # Validar que el DNI no esté duplicado en otra persona
+    dni_duplicado = db.query(Persona).filter(
+    Persona.dni == datos.dni,
+    Persona.id != persona_id  # excluye la persona actual
+    ).first()
+
+    if dni_duplicado:
+        raise HTTPException(status_code=400, detail="Ya existe otra persona con ese DNI")
+
+    # Validar que la fecha de nacimiento no sea futura
+    if datos.fecha_nacimiento > date.today():
+        raise HTTPException(status_code=422, detail="La fecha de nacimiento no puede ser futura")
+    
     # actualizar los campos
     persona.nombre = datos.nombre
     persona.dni = datos.dni
     persona.fecha_nacimiento = datos.fecha_nacimiento
-    persona.habilitado = datos.habilitado
+  
     try:
         db.commit()
         db.refresh(persona)
@@ -97,8 +111,11 @@ def crear_persona(datos: PersonaIn, db: Session = Depends(get_db)):
     existente = db.query(Persona).filter(Persona.dni == datos.dni).first()
     if existente:
         raise HTTPException(status_code=400, detail="Ya existe una persona con ese DNI")
+    # Validar que la fecha de nacimiento no sea futura
+    if datos.fecha_nacimiento > date.today():
+        raise HTTPException(status_code=422, detail="La fecha de nacimiento no puede ser futura")
 
-    persona = Persona(**datos.dict())  # convierte el modelo Pydantic en kwargs
+    persona = Persona(**datos.dict())  
     db.add(persona)
     try:
         db.commit()
@@ -121,7 +138,15 @@ def crear_contacto(datos: ContactoIn, db: Session = Depends(get_db)):
     # Validamos que no tenga un contacto asignado
     if persona.contacto:
         raise HTTPException(status_code=400, detail="La persona ya tiene un contacto asignado")
-
+    
+    # Validar que no exista un contacto con el mismo email
+    email_existente = db.query(Contacto).filter(Contacto.email == datos.email).first()
+    if email_existente:
+        raise HTTPException(status_code=400, detail="Ya existe un contacto con ese email")
+    
+      # Validamos formato de email 
+    if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", datos.email):
+        raise HTTPException(status_code=422, detail="Ingrese mail con formato válido")
     contacto = Contacto(**datos.dict())
     db.add(contacto)
 
@@ -146,6 +171,18 @@ def actualizar_contacto(contacto_id: int, datos: ContactoIn, db: Session = Depen
     if not persona:
         raise HTTPException(status_code=404, detail=f"No se encontró la persona con id: {datos.persona_id}")
 
+    # Validar que el email no esté duplicado en otro contacto
+    email_duplicado = db.query(Contacto).filter(
+    Contacto.email == datos.email,
+    Contacto.id != contacto_id  # excluye el contacto actual
+    ).first()
+
+    if email_duplicado:
+        raise HTTPException(status_code=400, detail="Ya existe un contacto con ese email")
+
+    if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", datos.email):
+        raise HTTPException(status_code=422, detail="Ingrese mail con formato válido")
+    
     for campo, valor in datos.dict().items():
         setattr(contacto, campo, valor)
 
@@ -186,31 +223,13 @@ def eliminar_persona(persona_id: int, db: Session = Depends(get_db)):
 
     return {"mensaje": f"La persona con ID {persona_id} fue eliminada correctamente."}
 
-#capturamos error de mail y lanzamos mensaje personalizado
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    errores = exc.errors()
-    mensajes = []
 
-    for error in errores:
-        loc = error.get("loc", [])
-        msg = error.get("msg", "")
-        if "email" in loc:
-            mensajes.append("El email ingresado no tiene un formato válido.")
-        else:
-            mensajes.append(msg)
-
-    return JSONResponse(
-        status_code=422,
-        content={"detail": mensajes}
-    )
 
 
 #función calcular edad
 def calcular_edad(fecha_nacimiento: date) -> int:
     hoy = date.today()
     return hoy.year - fecha_nacimiento.year - (
-        #Esto devuelve  (que equivale a ) si todavía no cumplió años este año, y  () si ya los cumplió.
         (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day)
     )
 
@@ -247,7 +266,7 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
     seis_meses_atras = datetime.today() - timedelta(days=180)
     cancelados = db.query(Turno).filter(
         Turno.persona_id == persona.id,
-        Turno.estado == "cancelado",
+        Turno.estado == "cancelado", 
         Turno.fecha >= seis_meses_atras.date()
     ).count()
 
@@ -299,7 +318,7 @@ def turnos_disponibles(fecha: date, db: Session = Depends(get_db)):
     hora_actual = datetime.combine(fecha, time(9, 0))
     fin = datetime.combine(fecha, time(17, 0))
 
-    while hora_actual <= fin:
+    while hora_actual <= fin: #arreglar
         horarios_posibles.append(hora_actual.time())
         hora_actual += timedelta(minutes=30)
 

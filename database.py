@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, ForeignKey, Time
-from datetime import date
+from datetime import date, time
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.orm import relationship
 
@@ -69,8 +69,7 @@ if __name__ == "__main__":
     nueva_persona = Persona(
         nombre="Lucía Fernández",
         dni=11111111,
-        fecha_nacimiento= date(2004, 5, 30),
-        habilitado=True
+        fecha_nacimiento= date(2004, 5, 30)
     )
 
     # Crear una instancia de Contacto asociada a la persona
@@ -82,9 +81,16 @@ if __name__ == "__main__":
         persona=nueva_persona  # Establece la relación
     )
 
+    nuevo_turno = Turno(
+        fecha=date(2025, 11, 5),
+        hora= time(14, 30),
+        estado="pendiente",
+        persona=nueva_persona  # Establece la relación
+    )
     # Agregar ambos objetos a la sesión
     session.add(nueva_persona)
     session.add(nuevo_contacto)
+    session.add(nuevo_turno)
 
     #una vez que hago el commit subo los cambios a la base, siempre es un solo commit por archivo
     #(voy a tener un archivo por transaccion, ejemplo uno para eliminar, otro modificar, etc)

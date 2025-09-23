@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from datetime import date, time
 
 # Entrada (POST/PUT)
@@ -6,7 +6,7 @@ class PersonaIn(BaseModel):
     nombre: str
     dni: int
     fecha_nacimiento: date
-    habilitado: bool 
+    
 
 # Salida (GET)
 class PersonaOut(BaseModel):
@@ -21,7 +21,7 @@ class PersonaOut(BaseModel):
 
 # Entrada
 class ContactoIn(BaseModel):
-    email: EmailStr  #valida que el mail tenga un formato valido ;)
+    email: str
     telefono: int
     direccion: str
     localidad: str

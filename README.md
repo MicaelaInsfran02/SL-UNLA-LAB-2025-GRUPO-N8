@@ -1,9 +1,6 @@
 Integrantes grupo8: 
 
-Micaela Insfran
-Gastón Madeo
-Rodrigo Emanuel Sanchez
-Manuel Shocron
+Micaela Insfran, Gastón Madeo, Rodrigo Emanuel Sanchez, Manuel Shocron
 
 Enlace al vídeo: https://drive.google.com/drive/folders/1mTIaz2h3PuNo7JZDkSKzSBnjYAwAM1o_?usp=sharing
 

@@ -395,7 +395,8 @@ def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
     turno = db.query(Turno).filter(Turno.id == turno_id).first()
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
-
+    
+   
     try:
         db.delete(turno)
         db.commit()
@@ -414,3 +415,28 @@ def obtener_contacto(contacto_id: int, db: Session = Depends(get_db)):
     if not contacto:
         raise HTTPException(status_code=404, detail="Contacto no encontrado")
     return contacto
+
+# Gestion de estado de turno
+@app.put("/turnos/{id}/confirmar")
+def confirmar_turno(id: int, db: Session = Depends(get_db)):
+    turno = db.query(Turno).filter(Turno.id == id).first()
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    if turno.estado in ["cancelado", "asistido"]:
+        raise HTTPException(status_code=400, detail="No se puede confirmar un turno cancelado o asistido")
+
+    turno.estado = "confirmado"
+    db.commit()
+    db.refresh(turno)  
+    return {
+        "mensaje": "Turno confirmado correctamente",
+        "turno": {
+            "id": turno.id,
+            "fecha": turno.fecha,
+            "hora": turno.hora,
+            "estado": turno.estado,
+            "persona_id": turno.persona_id
+        }
+    }
+

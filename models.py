@@ -49,7 +49,7 @@ class TurnoOut(BaseModel):
     fecha: date
     hora: time
     estado: str
-    persona_id: int
+    persona: PersonaOut
 
     class Config:
         orm_mode = True

@@ -1,5 +1,5 @@
 import re
-from fastapi import FastAPI , Depends, HTTPException, status, Request
+from fastapi import FastAPI , Depends, HTTPException, status,Query
 from sqlalchemy.orm import Session
 from database import get_db, Persona, Contacto, Turno
 from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut
@@ -439,4 +439,21 @@ def confirmar_turno(id: int, db: Session = Depends(get_db)):
             "persona_id": turno.persona_id
         }
     }
+
+#Endpoints de reportes
+
+@app.get("/reportes/turnos-por-fecha", response_model=list[TurnoOut])
+def obtener_turnos_por_fecha(
+    fecha: str = Query(..., description="Fecha en formato YYYY-MM-DD"),
+    db: Session = Depends(get_db) ):
+    try:
+        fecha_obj = datetime.strptime(fecha, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Usa YYYY-MM-DD.")
+
+    turnos = db.query(Turno).filter(Turno.fecha == fecha_obj).all()
+    if not turnos:
+        raise HTTPException(status_code=404, detail="No hay turnos reservados para esa fecha.")
+
+    return turnos
 

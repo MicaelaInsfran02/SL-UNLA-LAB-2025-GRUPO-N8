@@ -3,34 +3,46 @@ from fastapi import FastAPI , Depends, HTTPException, status,Query
 from sqlalchemy.orm import Session
 from database import get_db, Persona, Contacto, Turno
 from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut
-from fastapi.responses import JSONResponse
-from datetime import date, time
+from datetime import date, time, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from models import TurnoIn, TurnoOut
-from datetime import datetime, timedelta
-from sqlalchemy import and_
-
-
+from utils import calcular_edad, generar_horarios_posibles
 
 app = FastAPI()
 
-#Generar horarios disponibles, rango (9-17), intervalo de 30 min.
-def generar_horarios_posibles():
-    inicio = time(9, 0)
-    fin = time(17, 0)
-    horarios = []
-    hora_actual = datetime.combine(date.today(), inicio)
-    limite = datetime.combine(date.today(), fin)
 
-    while hora_actual <= limite:
-        horarios.append(hora_actual.time())
-        hora_actual += timedelta(minutes=30)
-
-    return horarios
 
 HORARIOS_POSIBLES = generar_horarios_posibles()
 
-#lo probamos con http://localhost:8000/personas en el navegador
+
+#crear una nueva persona
+@app.post ("/personas", response_model=PersonaOut, status_code=status.HTTP_201_CREATED)
+def crear_persona(datos: PersonaIn, db: Session = Depends(get_db)):
+    # Validar que no exista una persona con el mismo DNI
+    existente = db.query(Persona).filter(Persona.dni == datos.dni).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="Ya existe una persona con ese DNI")
+    # Validar que la fecha de nacimiento no sea futura
+    if datos.fecha_nacimiento > date.today():
+        raise HTTPException(status_code=422, detail="La fecha de nacimiento no puede ser futura")
+
+    persona = Persona(
+        nombre=datos.nombre,
+        dni=datos.dni,
+        fecha_nacimiento=datos.fecha_nacimiento,
+        habilitado=True
+    )
+    db.add(persona)
+    try:
+        db.commit()
+        db.refresh(persona)
+    except SQLAlchemyError as e:
+
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al crear la persona: {str(e)}")
+
+    return persona
+
 #obtener todas las personas
 @app.get("/personas")
 def listar_personas(db: Session = Depends(get_db)):
@@ -104,44 +116,18 @@ def actualizar_persona(persona_id: int, datos: PersonaIn, db: Session = Depends(
         "habilitado": persona.habilitado
     }
 
-#obtener todos los contactos
-@app.get("/contactos")
-def listar_contactos(db: Session = Depends(get_db)):
-    contactos = db.query(Contacto).all()
-    return [
-        {
-            "id": c.id,
-            "email": c.email,
-            "telefono": c.telefono,
-            "direccion": c.direccion,
-            "localidad": c.localidad,
-            "persona_id": c.persona_id
-        }
-        for c in contactos
-    ]
+#eliminar una persona 
+@app.delete("/personas/{persona_id}", status_code=status.HTTP_200_OK)
+def eliminar_persona(persona_id: int, db: Session = Depends(get_db)):
+    persona = db.query(Persona).filter(Persona.id == persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
 
-#crear una nueva persona
-@app.post ("/personas", response_model=PersonaOut, status_code=status.HTTP_201_CREATED)
-def crear_persona(datos: PersonaIn, db: Session = Depends(get_db)):
-    # Validar que no exista una persona con el mismo DNI
-    existente = db.query(Persona).filter(Persona.dni == datos.dni).first()
-    if existente:
-        raise HTTPException(status_code=400, detail="Ya existe una persona con ese DNI")
-    # Validar que la fecha de nacimiento no sea futura
-    if datos.fecha_nacimiento > date.today():
-        raise HTTPException(status_code=422, detail="La fecha de nacimiento no puede ser futura")
+    db.delete(persona)
+    db.commit()
 
-    persona = Persona(**datos.dict())  
-    db.add(persona)
-    try:
-        db.commit()
-        db.refresh(persona)
-    except SQLAlchemyError as e:
+    return {"mensaje": f"La persona con ID {persona_id} fue eliminada correctamente."}
 
-        db.rollback()
-        raise HTTPException(status_code=400, detail=f"Error al crear la persona: {str(e)}")
-
-    return persona
 
 #crear un nuevo contacto
 @app.post("/contactos", response_model=ContactoOut, status_code=status.HTTP_201_CREATED)
@@ -163,7 +149,14 @@ def crear_contacto(datos: ContactoIn, db: Session = Depends(get_db)):
       # Validamos formato de email 
     if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", datos.email):
         raise HTTPException(status_code=422, detail="Ingrese mail con formato válido")
-    contacto = Contacto(**datos.dict())
+    
+    contacto= Contacto(
+        email=datos.email,
+        telefono=datos.telefono,
+        direccion=datos.direccion,
+        localidad=datos.localidad,
+        persona_id=datos.persona_id
+    )
     db.add(contacto)
 
     try:
@@ -174,6 +167,22 @@ def crear_contacto(datos: ContactoIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"Error al crear la persona: {str(e)}")
 
     return contacto
+
+#obtener todos los contactos
+@app.get("/contactos")
+def listar_contactos(db: Session = Depends(get_db)):
+    contactos = db.query(Contacto).all()
+    return [
+        {
+            "id": c.id,
+            "email": c.email,
+            "telefono": c.telefono,
+            "direccion": c.direccion,
+            "localidad": c.localidad,
+            "persona_id": c.persona_id
+        }
+        for c in contactos
+    ]
 
 #actualizar un contacto
 @app.put("/contactos/{contacto_id}", status_code=status.HTTP_200_OK)
@@ -227,24 +236,7 @@ def eliminar_contacto(contacto_id: int, db: Session = Depends(get_db)):
 
     return {"mensaje": f"Contacto con id {contacto_id} eliminado correctamente"}
 
-#eliminar una persona 
-@app.delete("/personas/{persona_id}", status_code=status.HTTP_200_OK)
-def eliminar_persona(persona_id: int, db: Session = Depends(get_db)):
-    persona = db.query(Persona).filter(Persona.id == persona_id).first()
-    if not persona:
-        raise HTTPException(status_code=404, detail="Persona no encontrada")
 
-    db.delete(persona)
-    db.commit()
-
-    return {"mensaje": f"La persona con ID {persona_id} fue eliminada correctamente."}
-
-#función calcular edad
-def calcular_edad(fecha_nacimiento: date) -> int:
-    hoy = date.today()
-    return hoy.year - fecha_nacimiento.year - (
-        (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day)
-    )
 
 #POST turnos.
 @app.post("/turnos", response_model=TurnoOut, status_code=status.HTTP_201_CREATED)

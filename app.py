@@ -438,14 +438,28 @@ def confirmar_turno(id: int, db: Session = Depends(get_db)):
 def obtener_turnos_por_fecha(
     fecha: str = Query(..., description="Fecha en formato YYYY-MM-DD"),
     db: Session = Depends(get_db) ):
+    #convertimos la fecha de string a date, si el formato es incorrecto, lanza un error
     try:
         fecha_obj = datetime.strptime(fecha, "%Y-%m-%d").date()
     except ValueError:
         raise HTTPException(status_code=400, detail="Formato de fecha inválido. Usa YYYY-MM-DD.")
-
+    
+    #consultamos los turnos en esa fecha en la base de datos
     turnos = db.query(Turno).filter(Turno.fecha == fecha_obj).all()
     if not turnos:
         raise HTTPException(status_code=404, detail="No hay turnos reservados para esa fecha.")
 
     return turnos
 
+@app.get("/reportes/turnos-por-persona/{persona_id}", response_model=list[TurnoOut])
+def obtener_turnos_por_persona(persona_id: int, db: Session = Depends(get_db)):
+    persona = db.query(Persona).filter(Persona.id == persona_id).first() #.firts() devuelve la primera coincidencia o None)
+    if not persona:
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
+    
+    #buscamos turnos asociados a esa persona (dato: .all() devuelve una lista con los resultados
+    turnos = db.query(Turno).filter(Turno.persona_id == persona_id).all()
+    if not turnos:
+        raise HTTPException(status_code=404, detail="La persona no tiene turnos asignados")
+
+    return turnos

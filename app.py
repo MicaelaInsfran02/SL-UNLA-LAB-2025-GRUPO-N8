@@ -3,16 +3,16 @@ from fastapi import FastAPI , Depends, HTTPException, status,Query
 from sqlalchemy.orm import Session
 from database import get_db, Persona, Contacto, Turno
 from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut
-from datetime import date, time, datetime, timedelta
+from datetime import date, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from models import TurnoIn, TurnoOut
 from utils import calcular_edad, generar_horarios_posibles
+from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS
 
 app = FastAPI()
 
-
-
 HORARIOS_POSIBLES = generar_horarios_posibles()
+
 
 
 #crear una nueva persona
@@ -184,6 +184,14 @@ def listar_contactos(db: Session = Depends(get_db)):
         for c in contactos
     ]
 
+# GET contacto por ID
+@app.get("/contactos/{contacto_id}", response_model=ContactoOut)
+def obtener_contacto(contacto_id: int, db: Session = Depends(get_db)):
+    contacto = db.query(Contacto).filter(Contacto.id == contacto_id).first()
+    if not contacto:
+        raise HTTPException(status_code=404, detail="Contacto no encontrado")
+    return contacto
+
 #actualizar un contacto
 @app.put("/contactos/{contacto_id}", status_code=status.HTTP_200_OK)
 def actualizar_contacto(contacto_id: int, datos: ContactoIn, db: Session = Depends(get_db)):
@@ -251,11 +259,11 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="No se pueden sacar turnos en fechas pasadas")
 
     #Valido que el horario esté dentro del rango permitido (09:00 a 17:00).
-    if not (time(9, 0) <= datos.hora <= time(17, 0)):
-        raise HTTPException(status_code=400, detail="Horario fuera del rango permitido (09:00–17:00)")
+    if not (HORARIO_INICIO <= datos.hora <= HORARIO_FIN):
+        raise HTTPException(status_code=400, detail="Horario fuera del rango permitido (09:00-17:00)")
 
     #Valido que el horario esté en intervalos de 30 minutos.
-    if datos.hora.minute not in [0, 30]:
+    if datos.hora.minute % INTERVALO_MINUTOS != 0:
         raise HTTPException(status_code=400, detail="Los turnos deben ser en intervalos de 30 minutos")
 
     #Valido que no exista otro turno en el mismo día y horario.
@@ -343,11 +351,11 @@ def actualizar_turno(turno_id: int, datos: TurnoIn, db: Session = Depends(get_db
         raise HTTPException(status_code=404, detail="Persona no encontrada")
 
     # Validar rango horario (09:00 - 17:00)
-    if not (time(9, 0) <= datos.hora <= time(17, 0)):
-        raise HTTPException(status_code=400, detail="Horario fuera del rango permitido (09:00–17:00)")
+    if not (HORARIO_INICIO <= datos.hora <= HORARIO_FIN):
+        raise HTTPException(status_code=400, detail="Horario fuera del rango permitido (09:00-17:00)")
 
     # Validar intervalos de 30 minutos
-    if datos.hora.minute not in (0, 30):
+    if datos.hora.minute % INTERVALO_MINUTOS != 0:
         raise HTTPException(status_code=400, detail="Los turnos deben ser en intervalos de 30 minutos")
 
     # Buscar otro turno en la misma fecha/hora que no sea 'cancelado' y que no sea este turno para evitar un solapamiento
@@ -400,13 +408,6 @@ def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
             detail=f"Error al eliminar el turno: {str(e)}"
         )
 
-# GET contacto por ID
-@app.get("/contactos/{contacto_id}", response_model=ContactoOut)
-def obtener_contacto(contacto_id: int, db: Session = Depends(get_db)):
-    contacto = db.query(Contacto).filter(Contacto.id == contacto_id).first()
-    if not contacto:
-        raise HTTPException(status_code=404, detail="Contacto no encontrado")
-    return contacto
 
 # Gestion de estado de turno
 @app.put("/turnos/{id}/confirmar")

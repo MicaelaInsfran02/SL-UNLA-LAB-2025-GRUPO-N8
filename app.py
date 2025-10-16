@@ -8,6 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from models import TurnoIn, TurnoOut
 from utils import calcular_edad, generar_horarios_posibles
 from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS
+from calendar import month_name
+from sqlalchemy import extract
 
 app = FastAPI()
 
@@ -464,3 +466,35 @@ def obtener_turnos_por_persona(persona_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="La persona no tiene turnos asignados")
 
     return turnos
+
+#GET reportes: turnos cancelados en el mes actual.
+
+@app.get("/reportes/turnos-cancelados-mes-actual")
+def turnos_cancelados_mes_actual(db: Session = Depends(get_db)):
+    hoy = date.today()
+    turnos = db.query(Turno).filter(
+        Turno.estado == "cancelado",
+        extract("month", Turno.fecha) == hoy.month,
+        extract("year", Turno.fecha) == hoy.year
+    ).all()
+
+    if not turnos:
+        raise HTTPException(status_code=404, detail="No hay turnos cancelados en el mes actual")
+
+    informe_cancelados = {
+        "anio": hoy.year,
+        "mes": month_name[hoy.month].lower(),
+        "cantidad": len(turnos),
+        "turnos": [
+            {
+                "id": t.id,
+                "persona_id": t.persona_id,
+                "fecha": str(t.fecha),
+                "hora": t.hora.strftime("%H:%M"),
+                "estado": t.estado
+            }
+            for t in turnos
+        ]
+    }
+
+    return informe_cancelados

@@ -2,14 +2,14 @@ import re
 from fastapi import FastAPI , Depends, HTTPException, status,Query
 from sqlalchemy.orm import Session
 from database import get_db, Persona, Contacto, Turno
-from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut
+from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut, PersonaConCancelados, TurnoCancelado, TurnoIn, TurnoOut
 from datetime import date, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
-from models import TurnoIn, TurnoOut
-from utils import calcular_edad, generar_horarios_posibles
+from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados
 from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS
 from calendar import month_name
-from sqlalchemy import extract
+from sqlalchemy import extract, func
+
 
 app = FastAPI()
 
@@ -498,3 +498,40 @@ def turnos_cancelados_mes_actual(db: Session = Depends(get_db)):
     }
 
     return informe_cancelados
+
+#GET reportes: Personas con 5 turnos cancelados como mínimo
+
+@app.get("/reportes/personas-con-muchos-turnos-cancelados", response_model=list[PersonaConCancelados])
+def personas_con_muchos_turnos_cancelados(db: Session = Depends(get_db)):
+    consulta = persona_limite_cancelados(db)
+
+    personas = db.query(Persona).join(
+        consulta, Persona.id == consulta.c.persona_id
+    ).all()
+
+    resultado = []
+    for persona in personas:
+        turnos_cancelados = db.query(Turno).filter(
+            Turno.persona_id == persona.id,
+            Turno.estado == "cancelado"
+        ).all()
+
+        resultado.append(PersonaConCancelados(
+            persona_id=persona.id,
+            nombre=persona.nombre,
+            dni=persona.dni,
+            cantidad_cancelados=len(turnos_cancelados),
+            turnos=[
+                TurnoCancelado(
+                    id=t.id,
+                    fecha=str(t.fecha),
+                    hora=t.hora.strftime("%H:%M"),
+                    estado=t.estado
+                ) for t in turnos_cancelados
+            ]
+        ))
+
+    if not resultado:
+        raise HTTPException(status_code=404, detail="No hay personas con más de 5 turnos cancelados")
+
+    return resultado

@@ -53,3 +53,16 @@ class TurnoOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+class TurnoCancelado(BaseModel):
+    id: int
+    fecha: str
+    hora: str
+    estado: str
+
+class PersonaConCancelados(BaseModel):
+    persona_id: int
+    nombre: str
+    dni: int
+    cantidad_cancelados: int
+    turnos: list[TurnoCancelado]   

@@ -537,7 +537,7 @@ def personas_con_muchos_turnos_cancelados(db: Session = Depends(get_db)):
 
     return resultado
 
-# GET reportes: turnos confirmados en un período (máx 5 resultados)
+# GET reportes: turnos confirmados en un período
 @app.get("/reportes/turnos-confirmados", response_model=list[TurnoOut])
 def turnos_confirmados_en_periodo(  # define la función manejadora del endpoint; FastAPI la invoca cuando llega la request
     desde: str = Query(..., description="Fecha desde (YYYY-MM-DD)"),   # 'desde' es un query param OBLIGATORIO (... lo vuelve requerido) y se convierte a str

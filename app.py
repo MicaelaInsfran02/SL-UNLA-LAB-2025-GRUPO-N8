@@ -9,6 +9,7 @@ from utils import calcular_edad, generar_horarios_posibles, persona_limite_cance
 from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS
 from calendar import month_name
 from sqlalchemy import extract, func
+from sqlalchemy.orm import joinedload
 
 
 app = FastAPI()
@@ -535,3 +536,65 @@ def personas_con_muchos_turnos_cancelados(db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No hay personas con más de 5 turnos cancelados")
 
     return resultado
+
+# GET reportes: turnos confirmados en un período (máx 5 resultados)
+@app.get("/reportes/turnos-confirmados", response_model=list[TurnoOut])
+def turnos_confirmados_en_periodo(  # define la función manejadora del endpoint; FastAPI la invoca cuando llega la request
+    desde: str = Query(..., description="Fecha desde (YYYY-MM-DD)"),   # 'desde' es un query param OBLIGATORIO (... lo vuelve requerido) y se convierte a str
+    hasta: str = Query(..., description="Fecha hasta (YYYY-MM-DD)"),   # 'hasta' es un query param OBLIGATORIO (... lo vuelve requerido) y se convierte a str
+    db: Session = Depends(get_db)                                      # inyección de dependencia: crea/provee una Session de SQLAlchemy a través de get_db()
+): 
+
+    # parseo y validación de fechas
+    try:
+        desde_date = datetime.strptime(desde, "%Y-%m-%d").date()   # 'desde' -> date
+        hasta_date = datetime.strptime(hasta, "%Y-%m-%d").date()   # 'hasta' -> date
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Usa YYYY-MM-DD.")
+    if desde_date > hasta_date:
+        raise HTTPException(status_code=400, detail="'desde' no puede ser mayor que 'hasta'.")
+
+    # consulta: confirmados dentro del rango, ordenados ascendente, y limitar a 5
+    turnos = (
+        db.query(Turno)                                           # Query sobre Turno
+        .filter(
+            Turno.estado == "confirmado",                         # estado confirmado
+            Turno.fecha >= desde_date,                            # fecha >= desde
+            Turno.fecha <= hasta_date                             # fecha <= hasta
+        )
+        .order_by(Turno.fecha.asc(), Turno.hora.asc())            # orden por fecha/hora
+        .limit(5)                                                 # devolver sólo 5
+        .all()                                                    # ejecutar
+    )
+
+    if not turnos:
+        raise HTTPException(status_code=404, detail="No hay turnos confirmados en el período indicado.")
+
+    return turnos                                                # devuelve lista de Turno (Pydantic la serializa)
+
+
+# GET reportes: personas habilitadas o inhabilitadas para sacar turno
+@app.get("/reportes/estado-personas")  # define la ruta y método HTTP
+def reporte_estado_personas(
+    habilitada: bool = Query(..., description="true para habilitadas, false para inhabilitadas"),  # query param booleano
+    db: Session = Depends(get_db)                                                                   # sesión de base
+):
+    personas = db.query(Persona).filter(Persona.habilitado == habilitada).all()  # filtra por estado 'habilitado'
+
+    if not personas:
+        estado_txt = "habilitadas" if habilitada else "inhabilitadas"            # arma texto para el mensaje
+        raise HTTPException(status_code=404, detail=f"No hay personas {estado_txt} para sacar turno.")  # sin resultados
+
+    # mismo formato que /personas
+    return [
+        {
+            "id": p.id,                                         # id de la persona
+            "nombre": p.nombre,                                 # nombre
+            "edad": calcular_edad(p.fecha_nacimiento),          # edad calculada
+            "dni": p.dni,                                       # dni
+            "fecha_nacimiento": str(p.fecha_nacimiento),        # fecha de nacimiento como string
+            "habilitado": p.habilitado                          # estado de habilitación
+        }
+        for p in personas                                       # itera sobre todas las personas filtradas
+    ]
+

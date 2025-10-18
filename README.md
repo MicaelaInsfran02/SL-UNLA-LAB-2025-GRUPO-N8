@@ -1,12 +1,49 @@
-Integrantes grupo8: 
+Integrantes grupo8:
 
-Micaela Insfran, Gastón Madeo, Rodrigo Emanuel Sanchez, Manuel Shocron
+Micaela Insfran, Gaston Madeo, Rodrigo Emanuel Sanchez, Manuel Shocron
 
-Enlace al vídeo: https://drive.google.com/drive/folders/1mTIaz2h3PuNo7JZDkSKzSBnjYAwAM1o_?usp=sharing
+Enlace al video: https://drive.google.com/drive/folders/1mTIaz2h3PuNo7JZDkSKzSBnjYAwAM1o_?usp=sharing
 
 Enlace a postman: https://rodridev22-215338.postman.co/workspace/Rodrigo-Sanchez's-Workspace~52e74b2b-410f-4ef0-8975-f2b0cbe860e8/collection/48652798-15125a2a-4a8c-4703-a7d7-5b3c21ebf490?action=share&creator=48652798
 
-Enlace al repositorio GIT: https://github.com/MicaelaInsfran02/SL-UNLA-LAB-2025-GRUPO-N8
+# SL-UNLA-LAB-2025-GRUPO-N8
+
+## Requisitos previos
+- Python 3.10 o superior instalado en el sistema.
+- pip instalado y actualizado (verificar con `python -m pip --version`; actualiza con `python -m pip install --upgrade pip` si es necesario).
+
+## Crear y activar el entorno virtual
+1. Crear el venv en la raiz del proyecto:
+```bash
+python -m venv .venv
+```
+2. Activar el entorno:
+
+- Windows (PowerShell):
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+- Linux / macOS:
+```bash
+source .venv/bin/activate
+```
+
+> Ejecutar siempre los comandos desde la carpeta raiz del proyecto.
+
+## Instalar las librerias del proyecto
+Con el entorno virtual activo:
+```bash
+pip install -r requirements.txt
+```
+
+## Ejecutar la aplicacion
+Con el entorno virtual activo:
+```bash
+uvicorn app:app --reload
+```
+
+
 
 ABM PERSONAS:
 

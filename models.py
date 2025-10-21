@@ -89,15 +89,6 @@ class TurnoSinFecha(BaseModel):
 
     class Config:
         orm_mode = True
-class UsuarioConfirmado(BaseModel):
-    turno_id: int
-    hora: time
-    persona: PersonaOut
-
-class TurnosConfirmadosPorDia(BaseModel):
-    fecha: date
-    usuarios: List[UsuarioConfirmado]
-
 
 class TurnoSimple(BaseModel):
     id: int
@@ -120,3 +111,12 @@ class TurnoSinFecha(BaseModel):
 
     class Config:
         orm_mode = True
+
+class UsuarioConfirmado(BaseModel):
+    turno_id: int
+    hora: time
+    persona: PersonaOut
+
+class TurnosConfirmadosPorDia(BaseModel):
+    fecha: date
+    usuarios: List[UsuarioConfirmado]

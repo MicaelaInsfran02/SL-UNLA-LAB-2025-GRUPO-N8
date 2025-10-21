@@ -6,7 +6,7 @@ from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut, PersonaConCan
 from datetime import date, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados
-from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS
+from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS, LIMITE_CANCELACIONES, ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_PENDIENTE
 from calendar import month_name
 from sqlalchemy import extract, func, and_
 from math import ceil
@@ -263,16 +263,16 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
     seis_meses_atras = datetime.today() - timedelta(days=180)
     cancelados = db.query(Turno).filter(
         Turno.persona_id == persona.id,
-        Turno.estado == "cancelado", 
+        Turno.estado == ESTADO_TURNO_CANCELADO, 
         Turno.fecha >= seis_meses_atras.date()
     ).count()
 
-    if cancelados >= 5:
+    if cancelados >= LIMITE_CANCELACIONES:
         persona.habilitado = False
         db.commit()
         raise HTTPException(
             status_code=400,
-            detail="La persona no puede sacar turnos: tiene 5 o más cancelaciones en los últimos 6 meses"
+            detail="La persona no puede sacar turnos: tiene {LIMITE_CANCELACIONES} o más cancelaciones en los últimos 6 meses"
     )
 
     
@@ -303,7 +303,7 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
     nuevo_turno = Turno(
         fecha=datos.fecha,
         hora=datos.hora,
-        estado="pendiente",
+        estado=ESTADO_TURNO_PENDIENTE,
         persona_id=persona.id
     )
 
@@ -336,7 +336,7 @@ def obtener_turno(turno_id: int, db: Session = Depends(get_db)):
 def turnos_disponibles(fecha: date, db: Session = Depends(get_db)):
     turnos_ocupados = db.query(Turno.hora).filter(
         Turno.fecha == fecha,
-        Turno.estado != "cancelado"
+        Turno.estado != ESTADO_TURNO_CANCELADO
     ).all()
 
     horarios_ocupados = {t.hora for t in turnos_ocupados}
@@ -352,7 +352,7 @@ def actualizar_turno(turno_id: int, datos: TurnoIn, db: Session = Depends(get_db
         raise HTTPException(status_code=404, detail="Turno no encontrado")
 
     # no permitir cambios si ya está cancelado o asistido
-    if turno.estado in ("cancelado", "asistido"):
+    if turno.estado in (ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO):
         raise HTTPException(status_code=400, detail="No se puede modificar un turno cancelado o asistido")
 
     # validar que la persona indicada exista
@@ -373,7 +373,7 @@ def actualizar_turno(turno_id: int, datos: TurnoIn, db: Session = Depends(get_db
         Turno.fecha == datos.fecha,
         Turno.hora == datos.hora,
         Turno.id != turno.id,
-        Turno.estado != "cancelado"
+        Turno.estado != ESTADO_TURNO_CANCELADO
     ).first()
 
     if conflicto:
@@ -427,10 +427,10 @@ def confirmar_turno(id: int, db: Session = Depends(get_db)):
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
 
-    if turno.estado in ["cancelado", "asistido"]:
+    if turno.estado in [ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO]:
         raise HTTPException(status_code=400, detail="No se puede confirmar un turno cancelado o asistido")
 
-    turno.estado = "confirmado"
+    turno.estado = ESTADO_TURNO_CONFIRMADO
     db.commit()
     db.refresh(turno)  
     return {
@@ -451,10 +451,10 @@ def cancelar_turno(id: int, db: Session = Depends(get_db)):
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
 
-    if turno.estado in ["cancelado", "asistido"]:
+    if turno.estado in [ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO]:
         raise HTTPException(status_code=400, detail="No se puede cancelado un turno cancelado o asistido")
 
-    turno.estado = "cancelado"
+    turno.estado = ESTADO_TURNO_CANCELADO
     db.commit()
     db.refresh(turno)  
     return {
@@ -475,10 +475,10 @@ def asistir_turno(id: int, db: Session = Depends(get_db)):
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
 
-    if turno.estado in ["cancelado"]:
+    if turno.estado in [ESTADO_TURNO_CANCELADO]:
         raise HTTPException(status_code=400, detail="No se puede pasar al estado asistido un turno cancelado")
 
-    turno.estado = "asistido"
+    turno.estado = ESTADO_TURNO_ASISTIDO
     db.commit()
     db.refresh(turno)  
     return {
@@ -562,7 +562,7 @@ def obtener_turnos_por_persona(persona_id: int, db: Session = Depends(get_db)):
 def turnos_cancelados_mes_actual(db: Session = Depends(get_db)):
     hoy = date.today()
     turnos = db.query(Turno).filter(
-        Turno.estado == "cancelado",
+        Turno.estado == ESTADO_TURNO_CANCELADO,
         extract("month", Turno.fecha) == hoy.month,
         extract("year", Turno.fecha) == hoy.year
     ).all()
@@ -602,7 +602,7 @@ def personas_con_muchos_turnos_cancelados(db: Session = Depends(get_db)):
     for persona in personas:
         turnos_cancelados = db.query(Turno).filter(
             Turno.persona_id == persona.id,
-            Turno.estado == "cancelado"
+            Turno.estado == ESTADO_TURNO_CANCELADO
         ).all()
 
         resultado.append(PersonaConCancelados(
@@ -621,7 +621,7 @@ def personas_con_muchos_turnos_cancelados(db: Session = Depends(get_db)):
         ))
 
     if not resultado:
-        raise HTTPException(status_code=404, detail="No hay personas con más de 5 turnos cancelados")
+        raise HTTPException(status_code=404, detail="No hay personas con más de {LIMITE_CANCELACIONES} turnos cancelados")
 
     return resultado
 
@@ -642,7 +642,7 @@ def turnos_confirmados_en_periodo(
     total_fechas = (
         db.query(func.count(func.distinct(Turno.fecha)))               # COUNT(DISTINCT fecha)
           .filter(
-              Turno.estado == "confirmado",                            # Solo turnos confirmados
+              Turno.estado == ESTADO_TURNO_CONFIRMADO,                            # Solo turnos confirmados
               Turno.fecha >= desde,                                    # Dentro del rango (desde)
               Turno.fecha <= hasta,                                    # Dentro del rango (hasta)
           )
@@ -662,7 +662,7 @@ def turnos_confirmados_en_periodo(
         for fila in (
             db.query(Turno.fecha)                                     # Seleccionamos la fecha
               .filter(
-                  Turno.estado == "confirmado",                       # Solo confirmados
+                  Turno.estado == ESTADO_TURNO_CONFIRMADO,                       # Solo confirmados
                   Turno.fecha >= desde,                               # Rango desde
                   Turno.fecha <= hasta,                               # Rango hasta
               )
@@ -682,7 +682,7 @@ def turnos_confirmados_en_periodo(
             func.min(Turno.hora).label("hora_min"),                    # Hora mínima (primer turno confirmado del día)
         )
         .filter(
-            Turno.estado == "confirmado",                              # Solo confirmados
+            Turno.estado == ESTADO_TURNO_CONFIRMADO,                   # Solo confirmados
             Turno.fecha.in_(fechas_pagina),                            # Solo las fechas de esta página
         )
         .group_by(Turno.persona_id, Turno.fecha)                       # Dedup por persona/fecha

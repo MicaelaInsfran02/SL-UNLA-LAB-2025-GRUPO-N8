@@ -1,6 +1,6 @@
 from datetime import datetime,date, timedelta
 from sqlalchemy import or_, func
-from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS
+from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS, LIMITE_CANCELACIONES, ESTADO_TURNO_CANCELADO
 from sqlalchemy.orm import Session
 from database import Turno
 
@@ -33,11 +33,11 @@ def persona_limite_cancelados(db: Session):
         Turno.persona_id,
         func.count(Turno.id).label("cancelados")
     ).filter(
-        Turno.estado == "cancelado"
+        Turno.estado == ESTADO_TURNO_CANCELADO
     ).group_by(
         Turno.persona_id
     ).having(
-        func.count(Turno.id) >= 5
+        func.count(Turno.id) >= LIMITE_CANCELACIONES
     ).subquery()
 
 

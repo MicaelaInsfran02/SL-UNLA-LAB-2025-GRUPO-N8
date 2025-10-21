@@ -638,7 +638,7 @@ def turnos_confirmados_en_periodo(
 
     FECHAS_POR_PAGINA = 5  # Cantidad de FECHAS distintas por página
 
-    # 1) Total de FECHAS distintas con confirmados en el rango
+    # 1) Calcula cuántos DÍAS distintos tienen al menos un turno en estado "confirmado" dentro del rango [desde, hasta].
     total_fechas = (
         db.query(func.count(func.distinct(Turno.fecha)))               # COUNT(DISTINCT fecha)
           .filter(
@@ -656,7 +656,7 @@ def turnos_confirmados_en_periodo(
     if page > total_pages:  # Si la página pedida no existe
         raise HTTPException(status_code=404, detail=f"Página fuera de rango. total_pages={total_pages}")
 
-    # 2) FECHAS de esta página (orden ascendente)
+    # 2) Obtiene las FECHAS que corresponden a la página actual: selecciona únicamente Turno.fecha, filtra por estado y rango,
     fechas_pagina = [
         fila[0]                                                        # Extraemos la columna fecha de la fila
         for fila in (
@@ -674,7 +674,7 @@ def turnos_confirmados_en_periodo(
         )
     ]                                                                  # Resultado: lista de fechas para esta página
 
-    # 3) Deduplicamos por (fecha, persona) eligiendo la HORA más temprana de ese día
+    # 3) Construye una subconsulta que deduplica por (persona_id, fecha) eligiendo la hora mínima del día (primer turno confirmado).
     dedup = (
         db.query(
             Turno.persona_id.label("persona_id"),                      # Persona
@@ -689,7 +689,7 @@ def turnos_confirmados_en_periodo(
         .subquery()                                                    # Subconsulta para hacer el join
     )
 
-    # 4) Traemos los Turnos reales para esas fechas deduplicadas
+    # 4)  Reagrupa los turnos obtenidos por fecha siguiendo exactamente el orden de 'fechas_pagina' y construye la salida final.
     filas = (
         db.query(Turno)
           .options(joinedload(Turno.persona))                          # Eager load de persona (evita N+1)

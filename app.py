@@ -652,9 +652,9 @@ def turnos_confirmados_en_periodo(
     if total_fechas == 0:  # Si no hay fechas con confirmados en el período
         raise HTTPException(status_code=404, detail="No hay turnos confirmados en el período indicado.")
 
-    total_pages = ceil(total_fechas / FECHAS_POR_PAGINA)  # Total de páginas de FECHAS
-    if page > total_pages:  # Si la página pedida no existe
-        raise HTTPException(status_code=404, detail=f"Página fuera de rango. total_pages={total_pages}")
+    total_paginas = ceil(total_fechas / FECHAS_POR_PAGINA)  # Total de páginas de FECHAS
+    if page > total_paginas:  # Si la página pedida no existe
+        raise HTTPException(status_code=404, detail=f"Página fuera de rango. total de paginas={total_paginas}")
 
     # 2) Obtiene las FECHAS que corresponden a la página actual: selecciona únicamente Turno.fecha, filtra por estado y rango,
     fechas_pagina = [

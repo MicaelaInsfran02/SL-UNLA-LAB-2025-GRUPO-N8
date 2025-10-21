@@ -97,3 +97,26 @@ class UsuarioConfirmado(BaseModel):
 class TurnosConfirmadosPorDia(BaseModel):
     fecha: date
     usuarios: List[UsuarioConfirmado]
+
+
+class TurnoSimple(BaseModel):
+    id: int
+    fecha: date
+    hora: time
+    estado: str
+
+
+class PersonaConTurnos(BaseModel):
+    id: int
+    nombre: str
+    turnos: List[TurnoSimple]
+
+#turno sin fecha
+class TurnoSinFecha(BaseModel):
+    id: int
+    hora: time
+    estado: str
+    persona: PersonaOut
+
+    class Config:
+        orm_mode = True

@@ -2,7 +2,7 @@ import re
 from fastapi import FastAPI , Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from database import get_db, Persona, Contacto, Turno
-from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut, PersonaConCancelados, TurnoCancelado, TurnoIn, TurnoOut, PersonaConTurnos, TurnoSinFecha, UsuarioConfirmado, TurnosConfirmadosPorDia
+from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut, PersonaConCancelados, TurnoCancelado, TurnoIn, TurnoOut, PersonaConTurnos, TurnoSinFecha, PersonaConTurnos, TurnoSinFecha, UsuarioConfirmado, TurnosConfirmadosPorDia
 from datetime import date, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados

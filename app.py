@@ -2,7 +2,7 @@ import re
 from fastapi import FastAPI , Depends, HTTPException, status,Query
 from sqlalchemy.orm import Session
 from database import get_db, Persona, Contacto, Turno
-from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut, PersonaConCancelados, TurnoCancelado, TurnoIn, TurnoOut
+from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut, PersonaConCancelados, TurnoCancelado, TurnoIn, TurnoOut, PersonaConTurnos, TurnoSinFecha
 from datetime import date, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados
@@ -257,6 +257,23 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
     if not persona:
         raise HTTPException(status_code=404, detail="Persona no encontrada")
 
+     #Valido cancelaciones en los últimos 6 meses.
+    seis_meses_atras = datetime.today() - timedelta(days=180)
+    cancelados = db.query(Turno).filter(
+        Turno.persona_id == persona.id,
+        Turno.estado == "cancelado", 
+        Turno.fecha >= seis_meses_atras.date()
+    ).count()
+
+    if cancelados >= 5:
+        persona.habilitado = False
+        db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail="La persona no puede sacar turnos: tiene 5 o más cancelaciones en los últimos 6 meses"
+    )
+
+    
     #Valido que la fecha no sea en fechas pasadas.
     if datos.fecha < date.today():
         raise HTTPException(status_code=400, detail="No se pueden sacar turnos en fechas pasadas")
@@ -278,19 +295,7 @@ def crear_turno(datos: TurnoIn, db: Session = Depends(get_db)):
     if turno_existente:
         raise HTTPException(status_code=400, detail="Ya existe un turno en ese día y horario")
 
-    #Valido cancelaciones en los últimos 6 meses.
-    seis_meses_atras = datetime.today() - timedelta(days=180)
-    cancelados = db.query(Turno).filter(
-        Turno.persona_id == persona.id,
-        Turno.estado == "cancelado", 
-        Turno.fecha >= seis_meses_atras.date()
-    ).count()
-
-    if cancelados >= 5:
-        raise HTTPException(
-            status_code=400,
-            detail="La persona tiene 5 o más turnos cancelados en los últimos 6 meses"
-        )
+   
 
     #Crear el turno con estado "pendiente".
     nuevo_turno = Turno(
@@ -413,6 +418,7 @@ def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
 
 
 # Gestion de estado de turno
+#confirmar turno
 @app.put("/turnos/{id}/confirmar")
 def confirmar_turno(id: int, db: Session = Depends(get_db)):
     turno = db.query(Turno).filter(Turno.id == id).first()
@@ -436,9 +442,57 @@ def confirmar_turno(id: int, db: Session = Depends(get_db)):
         }
     }
 
+#cancelar turno
+@app.put("/turnos/{id}/cancelar")
+def cancelar_turno(id: int, db: Session = Depends(get_db)):
+    turno = db.query(Turno).filter(Turno.id == id).first()
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    if turno.estado in ["cancelado", "asistido"]:
+        raise HTTPException(status_code=400, detail="No se puede cancelado un turno cancelado o asistido")
+
+    turno.estado = "cancelado"
+    db.commit()
+    db.refresh(turno)  
+    return {
+        "mensaje": "Turno cancelado correctamente",
+        "turno": {
+            "id": turno.id,
+            "fecha": turno.fecha,
+            "hora": turno.hora,
+            "estado": turno.estado,
+            "persona_id": turno.persona_id
+        }
+    }
+
+#asistir turno
+@app.put("/turnos/{id}/asistido")
+def asistir_turno(id: int, db: Session = Depends(get_db)):
+    turno = db.query(Turno).filter(Turno.id == id).first()
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    if turno.estado in ["cancelado"]:
+        raise HTTPException(status_code=400, detail="No se puede pasar al estado asistido un turno cancelado")
+
+    turno.estado = "asistido"
+    db.commit()
+    db.refresh(turno)  
+    return {
+        "mensaje": "Turno marcado como asistido correctamente",
+        "turno": {
+            "id": turno.id,
+            "fecha": turno.fecha,
+            "hora": turno.hora,
+            "estado": turno.estado,
+            "persona_id": turno.persona_id
+        }
+    }
+
 #Endpoints de reportes
 
-@app.get("/reportes/turnos-por-fecha", response_model=list[TurnoOut])
+@app.get("/reportes/turnos-por-fecha",response_model=list[PersonaConTurnos])
 def obtener_turnos_por_fecha(
     fecha: str = Query(..., description="Fecha en formato YYYY-MM-DD"),
     db: Session = Depends(get_db) ):
@@ -453,20 +507,52 @@ def obtener_turnos_por_fecha(
     if not turnos:
         raise HTTPException(status_code=404, detail="No hay turnos reservados para esa fecha.")
 
-    return turnos
+    resultado = []
+    personas_dict = {}
 
-@app.get("/reportes/turnos-por-persona/{persona_id}", response_model=list[TurnoOut])
+    for turno in turnos:
+        persona = turno.persona
+        if persona.id not in personas_dict:
+            personas_dict[persona.id] = {
+                "id": persona.id,
+                "nombre": persona.nombre,
+                "turnos": []
+            }
+        personas_dict[persona.id]["turnos"].append({
+            "id": turno.id,
+            "fecha": turno.fecha,
+            "hora": turno.hora,
+            "estado": turno.estado
+        })
+
+    for datos in personas_dict.values():
+        # Convertimos el diccionario en un objeto Pydantic usando el constructor con desempaquetado (**datos)
+        resultado.append(PersonaConTurnos(**datos))
+
+    return resultado
+
+
+@app.get("/reportes/turnos-por-persona/{persona_id}", response_model=PersonaConTurnos)
 def obtener_turnos_por_persona(persona_id: int, db: Session = Depends(get_db)):
-    persona = db.query(Persona).filter(Persona.id == persona_id).first() #.firts() devuelve la primera coincidencia o None)
+    persona = db.query(Persona).filter(Persona.id == persona_id).first()
     if not persona:
         raise HTTPException(status_code=404, detail="Persona no encontrada")
-    
-    #buscamos turnos asociados a esa persona (dato: .all() devuelve una lista con los resultados
-    turnos = db.query(Turno).filter(Turno.persona_id == persona_id).all()
-    if not turnos:
-        raise HTTPException(status_code=404, detail="La persona no tiene turnos asignados")
 
-    return turnos
+    turnos = db.query(Turno).filter(Turno.persona_id == persona_id).all()
+
+    return {
+        "id": persona.id,
+        "nombre": persona.nombre,
+        "turnos": [
+            {
+                "id": turno.id,
+                "fecha": turno.fecha,
+                "hora": turno.hora,
+                "estado": turno.estado
+            } for turno in turnos
+        ]
+    }
+
 
 #GET reportes: turnos cancelados en el mes actual.
 

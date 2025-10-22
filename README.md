@@ -83,3 +83,11 @@ ABM CONTACTO:
 15- DELETE: Micaela Insfran
 
 16- GET por ID: Gaston Madeo
+
+ENDPOINTS DE REPORTES:
+GET /reportes/turnos-por-fecha?fecha=YYYY-MM-DD     Micaela Insfran 
+GET /reportes/turnos-cancelados-por-mes             Micaela Insfran 
+GET /reportes/turnos-por-persona?dni=12345678       Manuel Shocron  
+GET /reportes/turnos-cancelados?min=5               Manuel Shocron
+GET /reportes/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD   Rodrigo Sanchez 
+GET /reportes/estado-personas?habilitada=true/false                  Rodrigo Sanchez

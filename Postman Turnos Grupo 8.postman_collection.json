@@ -1,0 +1,580 @@
+{
+	"info": {
+		"_postman_id": "15125a2a-4a8c-4703-a7d7-5b3c21ebf490",
+		"name": "Postman Turnos Grupo 8",
+		"description": "Endpoints del Hito 1: ABM personas, ABM turnos, calculo de turnos disponibles",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48652798",
+		"_collection_link": "https://rodridev22-215338.postman.co/workspace/Rodrigo-Sanchez's-Workspace~52e74b2b-410f-4ef0-8975-f2b0cbe860e8/collection/48652798-15125a2a-4a8c-4703-a7d7-5b3c21ebf490?action=share&source=collection_link&creator=48652798"
+	},
+	"item": [
+		{
+			"name": "Crear persona",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"nombre\": \"Maria Lopez\",\r\n  \"dni\": 44444444,\r\n  \"fecha_nacimiento\": \"2001-06-21\",\r\n  \"habilitado\": true\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/personas",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"personas"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Listar personas",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/personas",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"personas"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obtener persona por ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/personas/:personaId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"personas",
+						":personaId"
+					],
+					"variable": [
+						{
+							"key": "personaId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Actualizar persona",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"nombre\": \"Mateo Lodoña\",\r\n  \"dni\": 33333333,\r\n  \"fecha_nacimiento\": \"2010-03-12\",\r\n  \"habilitado\": true\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/personas/:personaId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"personas",
+						":personaId"
+					],
+					"variable": [
+						{
+							"key": "personaId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Eliminar persona",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/personas/:personaId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"personas",
+						":personaId"
+					],
+					"variable": [
+						{
+							"key": "personaId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Listar contactos",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/contactos",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"contactos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Crear contacto",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"email\": \"ejemploemail@gmail.com\",\r\n  \"telefono\": 541133337777,\r\n  \"direccion\": \"Avenida Cordoba\",\r\n  \"localidad\": \"Capital\",\r\n  \"persona_id\": 2\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/contactos",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"contactos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Listar turnos",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/turnos",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"turnos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Crear turno",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"fecha\": \"2025-09-21\",\r\n  \"hora\": \"19:35:00\",\r\n  \"persona_id\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/turnos",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"turnos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obtener turno por ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/turnos/:turnoId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"turnos",
+						":turnoId"
+					],
+					"variable": [
+						{
+							"key": "turnoId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Actualizar turno",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"fecha\": \"2025-09-21\",\r\n  \"hora\": \"19:30:00\",\r\n  \"persona_id\": 0\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/turnos/:turnoId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"turnos",
+						":turnoId"
+					],
+					"variable": [
+						{
+							"key": "turnoId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Eliminar turno",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/turnos/:turnoId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"turnos",
+						":turnoId"
+					],
+					"variable": [
+						{
+							"key": "turnoId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Listar turnos disponibles",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"fecha\": \"2025-09-21\",\r\n  \"hora\": \"19:35:00\",\r\n  \"persona_id\": 0\r\n}"
+				},
+				"url": {
+					"raw": "{{baseURL}}/turnos-disponibles?fecha=2000-01-01",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"turnos-disponibles"
+					],
+					"query": [
+						{
+							"key": "fecha",
+							"value": "2000-01-01"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Confirmar Turno",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/turnos/:turnoId/confirmar",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"turnos",
+						":turnoId",
+						"confirmar"
+					],
+					"variable": [
+						{
+							"key": "turnoId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Cancelar turno",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/turnos/:turnoId/cancelar",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"turnos",
+						":turnoId",
+						"cancelar"
+					],
+					"variable": [
+						{
+							"key": "turnoId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Asistir turno",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/turnos/:turnoId/asistido",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"turnos",
+						":turnoId",
+						"asistido"
+					],
+					"variable": [
+						{
+							"key": "turnoId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obtener reporte de turnos por fecha",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/turnos-por-fecha?fecha=2025-11-05",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"turnos-por-fecha"
+					],
+					"query": [
+						{
+							"key": "fecha",
+							"value": "2025-11-05"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obtener reportes de turnos por persona",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/turnos-por-persona/:personaId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"turnos-por-persona",
+						":personaId"
+					],
+					"variable": [
+						{
+							"key": "personaId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obtener reportes de turnos cancelados en mes actual",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/turnos-cancelados-mes-actual",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"turnos-cancelados-mes-actual"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obtener reporte de personas con muchos turnos cancelados",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/personas-con-muchos-turnos-cancelados",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"personas-con-muchos-turnos-cancelados"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obtener reportes de turnos confirmados en periodo",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/turnos-confirmados?desde=2025-11-01&hasta=2025-11-30&page=1",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"turnos-confirmados"
+					],
+					"query": [
+						{
+							"key": "desde",
+							"value": "2025-11-01"
+						},
+						{
+							"key": "hasta",
+							"value": "2025-11-30"
+						},
+						{
+							"key": "page",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obtener reportes del estado de personas",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/estado-personas?habilitada=true",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"estado-personas"
+					],
+					"query": [
+						{
+							"key": "habilitada",
+							"value": "true"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": ""
+		}
+	]
+}

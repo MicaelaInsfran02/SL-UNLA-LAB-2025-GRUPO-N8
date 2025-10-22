@@ -534,13 +534,13 @@ def obtener_turnos_por_fecha(
     return resultado
 
 
-@app.get("/reportes/turnos-por-persona/{persona_id}", response_model=PersonaConTurnos)
-def obtener_turnos_por_persona(persona_id: int, db: Session = Depends(get_db)):
-    persona = db.query(Persona).filter(Persona.id == persona_id).first()
+@app.get("/reportes/turnos-por-persona/{dni}", response_model=PersonaConTurnos)
+def obtener_turnos_por_persona(dni: str, db: Session = Depends(get_db)):
+    persona = db.query(Persona).filter(Persona.dni == dni).first()
     if not persona:
         raise HTTPException(status_code=404, detail="Persona no encontrada")
 
-    turnos = db.query(Turno).filter(Turno.persona_id == persona_id).all()
+    turnos = db.query(Turno).filter(Turno.persona_id == persona.id).all()
 
     return {
         "id": persona.id,

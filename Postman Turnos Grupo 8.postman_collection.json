@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "15125a2a-4a8c-4703-a7d7-5b3c21ebf490",
 		"name": "Postman Turnos Grupo 8",
-		"description": "Endpoints del Hito 1: ABM personas, ABM turnos, calculo de turnos disponibles",
+		"description": "Endpoints del Hito 1 y 2 del grupo 8",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "48652798",
 		"_collection_link": "https://rodridev22-215338.postman.co/workspace/Rodrigo-Sanchez's-Workspace~52e74b2b-410f-4ef0-8975-f2b0cbe860e8/collection/48652798-15125a2a-4a8c-4703-a7d7-5b3c21ebf490?action=share&source=collection_link&creator=48652798"

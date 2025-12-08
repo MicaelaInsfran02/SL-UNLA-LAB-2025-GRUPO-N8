@@ -1,17 +1,19 @@
 import re
-from fastapi import FastAPI , Depends, HTTPException, status, Query
+from fastapi import FastAPI , Depends, HTTPException, status, Query, Response
 from sqlalchemy.orm import Session, joinedload
 from database import get_db, Persona, Contacto, Turno
 from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut, PersonaConCancelados, TurnoCancelado, TurnoIn, TurnoOut, PersonaConTurnos, TurnoSinFecha, PersonaConTurnos, TurnoSinFecha, UsuarioConfirmado, TurnosConfirmadosPorDia
 from datetime import date, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
-from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados
+from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados, generar_pdf_tabla
 from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS, LIMITE_CANCELACIONES, ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_PENDIENTE
 from calendar import month_name
 from sqlalchemy import extract, func, and_
 from math import ceil
 from fastapi import Query
 from sqlalchemy import func
+
+
 
 
 app = FastAPI()
@@ -747,4 +749,41 @@ def reporte_estado_personas(
         }
         for p in personas                                       # itera sobre todas las personas filtradas
     ]
+
+@app.get("/reportes/pdf/turnos-por-fecha")
+def descargar_pdf_turnos_por_fecha(
+    fecha: date = Query(..., description="AAAA-MM-DD"),db: Session = Depends(get_db)   
+):
+    # Consulta ORM: todos los turnos de esa fecha
+    turnos = (
+        db.query(Turno)
+        .options(joinedload(Turno.persona))
+        .filter(Turno.fecha == fecha)
+        .order_by(Turno.hora.asc(), Turno.id.asc())
+        .all()
+    )
+
+    if not turnos:
+        raise HTTPException(status_code=404, detail=f"No hay turnos para la fecha {fecha}")
+
+    # Convertir ORM a dict para la tabla PDF
+    datos = [
+        {
+            "id": t.id,
+            "fecha": str(t.fecha),
+            "hora": str(t.hora),
+            "estado": t.estado,
+            "persona": t.persona.nombre if t.persona else None
+        }
+        for t in turnos
+    ]
+
+    # Generar PDF
+    pdf_bytes = generar_pdf_tabla(datos, f"Turnos del {fecha}")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=turnos_{fecha}.pdf"}
+    )
 

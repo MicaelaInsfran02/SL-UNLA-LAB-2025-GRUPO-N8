@@ -750,6 +750,7 @@ def reporte_estado_personas(
         for p in personas                                       # itera sobre todas las personas filtradas
     ]
 
+#Get reportes: turnos cancelados por fecha en PDF --------------------------
 @app.get("/reportes/pdf/turnos-por-fecha")
 def descargar_pdf_turnos_por_fecha(
     fecha: date = Query(..., description="AAAA-MM-DD"),db: Session = Depends(get_db)   
@@ -781,9 +782,59 @@ def descargar_pdf_turnos_por_fecha(
     # Generar PDF
     pdf_bytes = generar_pdf_tabla(datos, f"Turnos del {fecha}")
 
+    # Devolver PDF como respuesta descargable con el nombre adecuado
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=turnos_{fecha}.pdf"}
     )
 
+
+#Get reportes: turnos cancelados por mes en PDF ------------------
+@app.get("/reportes/pdf/turnos-cancelados-por-mes")
+def descargar_pdf_turnos_cancelados_por_mes(
+    anio: int = Query(..., description="Año en formato AAAA"),
+    mes: int = Query(..., ge=1, le=12, description="Mes en formato 1-12"),
+    db: Session = Depends(get_db)
+ ):
+    # Consulta ORM: turnos cancelados en ese mes
+    turnos = (
+        db.query(Turno)
+        .options(joinedload(Turno.persona))
+        .filter(Turno.estado == "cancelado")
+        .filter(extract("year", Turno.fecha) == anio)
+        .filter(extract("month", Turno.fecha) == mes)
+        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc())
+        .all()
+    )
+
+    if not turnos:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay turnos cancelados para {anio}-{mes:02d}"
+        )
+
+    # Convertir ORM a dict para la tabla PDF
+    datos = [
+        {
+            "id": t.id,
+            "fecha": str(t.fecha),
+            "hora": str(t.hora),
+            "estado": t.estado,
+            "persona": t.persona.nombre if t.persona else None
+        }
+        for t in turnos
+    ]
+
+    # Generar PDF
+    titulo = f"Turnos cancelados - {anio}-{mes:02d}"
+    pdf_bytes = generar_pdf_tabla(datos, titulo)
+
+    # Devolver PDF como respuesta descargable con el nombre adecuado
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=turnos_cancelados_{anio}_{mes:02d}.pdf"
+        }
+    )

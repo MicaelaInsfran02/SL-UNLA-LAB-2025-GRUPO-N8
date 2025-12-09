@@ -65,10 +65,10 @@ def generar_pdf_tabla(datos: list[dict], titulo: str) -> bytes:
     # Título
     layout.add(
         Paragraph(
-            titulo,
+            titulo.upper(),
             font="Helvetica-Bold",
             font_size=14,
-            horizontal_alignment=Alignment.LEFT
+            horizontal_alignment=Alignment.CENTERED
         )
     )
 

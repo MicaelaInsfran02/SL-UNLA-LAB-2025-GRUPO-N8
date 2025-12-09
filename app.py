@@ -5,13 +5,14 @@ from database import get_db, Persona, Contacto, Turno
 from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut, PersonaConCancelados, TurnoCancelado, TurnoIn, TurnoOut, PersonaConTurnos, TurnoSinFecha, PersonaConTurnos, TurnoSinFecha, UsuarioConfirmado, TurnosConfirmadosPorDia
 from datetime import date, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
-from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados, generar_pdf_tabla
+from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados, generar_pdf_tabla, generar_csv
 from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS, LIMITE_CANCELACIONES, ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_PENDIENTE
 from calendar import month_name
 from sqlalchemy import extract, func, and_
 from math import ceil
 from fastapi import Query
 from sqlalchemy import func
+import pandas as pd
 
 
 
@@ -837,4 +838,41 @@ def descargar_pdf_turnos_cancelados_por_mes(
         headers={
             "Content-Disposition": f"attachment; filename=turnos_cancelados_{anio}_{mes:02d}.pdf"
         }
+    )
+
+#GET reportes: turnos por fecha en CSV --------------------------
+@app.get("/reportes/csv/turnos-por-fecha")
+def descargar_csv_turnos_por_fecha(
+    fecha: date = Query(..., description="AAAA-MM-DD"),
+    db: Session = Depends(get_db)
+ ):
+    turnos = (
+        db.query(Turno)
+        .options(joinedload(Turno.persona))
+        .filter(Turno.fecha == fecha)
+        .order_by(Turno.hora.asc(), Turno.id.asc())
+        .all()
+    )
+
+    if not turnos:
+        raise HTTPException(status_code=404, detail=f"No hay turnos para la fecha {fecha}")
+
+    datos = [
+        {
+            "id": t.id,
+            "fecha": str(t.fecha),
+            "hora": str(t.hora),
+            "estado": t.estado,
+            "persona": t.persona.nombre if t.persona else None
+        }
+        for t in turnos
+    ]
+
+    csv_content = generar_csv(datos)
+
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=turnos_{fecha}.csv"}
     )

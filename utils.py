@@ -13,6 +13,8 @@ from borb.pdf.canvas.layout.table.table import TableCell
 from borb.pdf.canvas.layout.text.paragraph import Paragraph
 from borb.pdf.canvas.color.color import HexColor
 from borb.pdf.canvas.layout.layout_element import Alignment
+import pandas as pd
+from io import StringIO
 
 
 #función calcular edad
@@ -117,3 +119,12 @@ def generar_pdf_tabla(datos: list[dict], titulo: str) -> bytes:
     # Exportar
     PDF.dumps(pdf_buffer, doc)
     return pdf_buffer.getvalue()
+
+# Generar CSV desde lista de diccionarios
+def generar_csv(datos: list[dict]) -> str:
+
+   #Recibe una lista de diccionarios y devuelve el contenido CSV como string.
+    df = pd.DataFrame(datos)
+    buffer = StringIO()
+    df.to_csv(buffer, index=False)
+    return buffer.getvalue()

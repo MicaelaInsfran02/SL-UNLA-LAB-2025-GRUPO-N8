@@ -822,3 +822,84 @@ def descargar_pdf_turnos_por_fecha(
     return pdf_response(datos, f"Turnos del día {fecha} (página {pagina})", f"turnos_{fecha}_p{pagina}"
     )
 
+@app.get("/reportes/csv/turnos-por-fecha")
+def descargar_csv_turnos_por_fecha(
+    fecha: date = Query(..., description="Fecha en formato AAAA-MM-DD"),
+    pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
+    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
+    db: Session = Depends(get_db)
+):
+    # Calcular desde qué registro empezar
+    inicio = (pagina - 1) * pagina_limite
+
+    # Consulta ORM con paginación
+    turnos = (
+        db.query(Turno)
+        .options(joinedload(Turno.persona))
+        .filter(Turno.fecha == fecha)
+        .order_by(Turno.hora.asc(), Turno.id.asc())
+        .offset(inicio)
+        .limit(pagina_limite)
+        .all()
+    )
+
+    if not turnos:
+        raise HTTPException(
+            status_code=404, detail=f"No hay turnos para la fecha {fecha} en la página {pagina}" )
+
+    # Transformar ORM → dict
+    datos = turnos_to_dict(turnos)
+
+    # Generar CSV en memoria con Pandas
+    csv_buffer = generar_csv( datos, titulo=f"Turnos del día {fecha} (página {pagina})")
+
+    # Devolver archivo CSV
+    return StreamingResponse(
+        csv_buffer,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=turnos_{fecha}_p{pagina}.csv"
+        }
+    )
+
+@app.get("/reportes/csv/turnos-cancelados-por-mes")
+def descargar_csv_turnos_cancelados_por_mes(
+    anio: int = Query(..., description="Año en formato AAAA"),
+    mes: int = Query(..., ge=1, le=12, description="Mes en formato 1-12"),
+    pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
+    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
+    db: Session = Depends(get_db)
+):
+    # Calcular desde qué registro empezar
+    inicio = (pagina - 1) * pagina_limite
+
+    # Consulta ORM con paginación
+    turnos = (
+        db.query(Turno)
+        .options(joinedload(Turno.persona))
+        .filter(Turno.estado == "cancelado")
+        .filter(extract("year", Turno.fecha) == anio)
+        .filter(extract("month", Turno.fecha) == mes)
+        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc())
+        .offset(inicio)
+        .limit(pagina_limite)
+        .all()
+    )
+
+    if not turnos:
+        raise HTTPException( status_code=404, detail=f"No hay turnos cancelados para {anio}-{mes:02d} en la página {pagina}")
+
+    # Transformar ORM → dict
+    datos = turnos_to_dict(turnos)
+
+    # Generar CSV en memoria con Pandas
+    csv_buffer = generar_csv( datos, titulo=f"Turnos cancelados - {anio}-{mes:02d} (Página {pagina})")
+
+    # Devolver archivo CSV
+    return StreamingResponse(
+        csv_buffer,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=turnos_cancelados_{anio}_{mes:02d}_p{pagina}.csv"
+        }
+    )

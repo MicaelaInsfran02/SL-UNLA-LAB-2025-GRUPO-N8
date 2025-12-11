@@ -14,7 +14,7 @@ from borb.pdf.canvas.layout.text.paragraph import Paragraph
 from borb.pdf.canvas.color.color import HexColor
 from borb.pdf.canvas.layout.layout_element import Alignment
 import pandas as pd
-from io import StringIO
+import io
 from fastapi.responses import StreamingResponse
 
 
@@ -54,19 +54,7 @@ def persona_limite_cancelados(db: Session):
         func.count(Turno.id) >= LIMITE_CANCELACIONES
     ).subquery()
 
-
-
-
-# Generar CSV desde lista de diccionarios
-def generar_csv(datos: list[dict]) -> str:
-
-   #Recibe una lista de diccionarios y devuelve el contenido CSV como string.
-    df = pd.DataFrame(datos)
-    buffer = StringIO()
-    df.to_csv(buffer, index=False)
-    return buffer.getvalue()
-
-
+# Generar PDF con tabla de datos
 def generar_pdf_tabla(datos: list[dict], titulo: str) -> BytesIO:
     # Crear buffer en memoria
     buffer = BytesIO()  
@@ -148,3 +136,17 @@ def pdf_response(datos, titulo, nombre_archivo):
             "Content-Disposition": f"attachment; filename={nombre_archivo}.pdf" # Nombre del archivo
         }
     )
+
+
+def generar_csv(datos, titulo=None):
+    buffer_texto = io.StringIO()   # Crear buffer de texto en memoria
+
+    if titulo: buffer_texto.write(f"{titulo}\n\n") # Escribir título si se proporciona (por defecto none)
+
+    df = pd.DataFrame(datos) # Convertir lista de diccionarios a DataFrame de pandas
+    df.to_csv(buffer_texto, index=False, encoding="utf-8") # Escribir DataFrame en buffer de texto como CSV
+
+    buffer_bytes = io.BytesIO(buffer_texto.getvalue().encode("utf-8")) # Convertir texto a bytes en otro buffer
+    buffer_bytes.seek(0) # volver al inicio del stream
+
+    return buffer_bytes # Devolver buffer de bytes

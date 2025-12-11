@@ -5,7 +5,7 @@ from database import get_db, Persona, Contacto, Turno
 from models import PersonaIn, PersonaOut, ContactoIn, ContactoOut, PersonaConCancelados, TurnoCancelado, TurnoIn, TurnoOut, PersonaConTurnos, TurnoSinFecha, PersonaConTurnos, TurnoSinFecha, UsuarioConfirmado, TurnosConfirmadosPorDia
 from datetime import date, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
-from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados, generar_pdf_tabla, generar_csv
+from utils import calcular_edad, generar_horarios_posibles, persona_limite_cancelados, generar_csv, turnos_to_dict, pdf_response
 from config import HORARIO_INICIO, HORARIO_FIN, INTERVALO_MINUTOS, LIMITE_CANCELACIONES, ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_PENDIENTE
 from calendar import month_name
 from sqlalchemy import extract, func, and_
@@ -13,7 +13,7 @@ from math import ceil
 from fastapi import Query
 from sqlalchemy import func
 import pandas as pd
-
+from fastapi.responses import StreamingResponse
 
 
 
@@ -751,128 +751,74 @@ def reporte_estado_personas(
         for p in personas                                       # itera sobre todas las personas filtradas
     ]
 
-#Get reportes: turnos cancelados por fecha en PDF --------------------------
-@app.get("/reportes/pdf/turnos-por-fecha")
-def descargar_pdf_turnos_por_fecha(
-    fecha: date = Query(..., description="AAAA-MM-DD"),db: Session = Depends(get_db)   
-):
-    # Consulta ORM: todos los turnos de esa fecha
-    turnos = (
-        db.query(Turno)
-        .options(joinedload(Turno.persona))
-        .filter(Turno.fecha == fecha)
-        .order_by(Turno.hora.asc(), Turno.id.asc())
-        .all()
-    )
 
-    if not turnos:
-        raise HTTPException(status_code=404, detail=f"No hay turnos para la fecha {fecha}")
-
-    # Convertir ORM a dict para la tabla PDF
-    datos = [
-        {
-            "id": t.id,
-            "fecha": str(t.fecha),
-            "hora": str(t.hora),
-            "estado": t.estado,
-            "persona": t.persona.nombre if t.persona else None
-        }
-        for t in turnos
-    ]
-
-    # Generar PDF
-    pdf_bytes = generar_pdf_tabla(datos, f"Turnos del {fecha}")
-
-    # Devolver PDF como respuesta descargable con el nombre adecuado
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=turnos_{fecha}.pdf"}
-    )
-
-
-#Get reportes: turnos cancelados por mes en PDF ------------------
+#GET reportes: turnos cancelados por mes en PDF con paginación --------------------------
 @app.get("/reportes/pdf/turnos-cancelados-por-mes")
 def descargar_pdf_turnos_cancelados_por_mes(
-    anio: int = Query(..., description="Año en formato AAAA"),
-    mes: int = Query(..., ge=1, le=12, description="Mes en formato 1-12"),
+    anio: int = Query(..., description="Año en formato AAAA"), #parametro obligatorio
+    mes: int = Query(..., ge=1, le=12, description="Mes en formato 1-12"), #parametro obligatorio
+    pagina: int = Query(1, ge=1, description="Número de página (>=1)"), #número de página, mínimo 1, empezando desde la 1.
+    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"), #cantidad de registros por página, mínimo 1 y máximo 20.
     db: Session = Depends(get_db)
- ):
-    # Consulta ORM: turnos cancelados en ese mes
+):
+    # Calcular desde qué registro empezar
+    inicio = (pagina - 1) * pagina_limite
+
+    # Consulta ORM con paginación
     turnos = (
         db.query(Turno)
         .options(joinedload(Turno.persona))
         .filter(Turno.estado == "cancelado")
         .filter(extract("year", Turno.fecha) == anio)
         .filter(extract("month", Turno.fecha) == mes)
-        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc())
-        .all()
+        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc()) # ordena por fecha, hora e id
+        .offset(inicio) # indica desde qué registro empezar
+        .limit(pagina_limite) # limita la cantidad de registros traídos
+        .all() # ejecuta la consulta
     )
 
+    # En caso de que no haya turnos cancelados en esa página
     if not turnos:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No hay turnos cancelados para {anio}-{mes:02d}"
-        )
+        raise HTTPException( status_code=404,  detail=f"No hay turnos cancelados para {anio}-{mes:02d} en la página {pagina}" )
 
-    # Convertir ORM a dict para la tabla PDF
-    datos = [
-        {
-            "id": t.id,
-            "fecha": str(t.fecha),
-            "hora": str(t.hora),
-            "estado": t.estado,
-            "persona": t.persona.nombre if t.persona else None
-        }
-        for t in turnos
-    ]
+    # Transformar ORM a diccionario
+    datos = turnos_to_dict(turnos)
 
-    # Generar PDF
-    titulo = f"Turnos cancelados - {anio}-{mes:02d}"
-    pdf_bytes = generar_pdf_tabla(datos, titulo)
+    # Generar PDF y devolver respuesta
+    return pdf_response(
+        datos, f"Turnos cancelados - {anio}-{mes:02d} (página {pagina})", f"turnos_cancelados_{anio}_{mes:02d}_p{pagina}")
 
-    # Devolver PDF como respuesta descargable con el nombre adecuado
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f"attachment; filename=turnos_cancelados_{anio}_{mes:02d}.pdf"
-        }
-    )
 
-#GET reportes: turnos por fecha en CSV --------------------------
-@app.get("/reportes/csv/turnos-por-fecha")
-def descargar_csv_turnos_por_fecha(
-    fecha: date = Query(..., description="AAAA-MM-DD"),
-    db: Session = Depends(get_db)
- ):
+
+#GET reportes: turnos por fecha en PDF con paginación --------------------------
+@app.get("/reportes/pdf/turnos-por-fecha")
+def descargar_pdf_turnos_por_fecha(
+    fecha: date = Query(..., description="Fecha en formato AAAA-MM-DD"), #parametro obligatorio
+    pagina: int = Query(1, ge=1, description="Número de página (>=1)"), #número de página, mínimo 1, empezando desde la 1.
+    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"), #cantidad de registros por página, mínimo 1 y máximo 20.
+    db: Session = Depends(get_db) #inyección de la sesión de base de datos
+):
+    
+    inicio = (pagina - 1) * pagina_limite  #  indica desde qué registro empezar.- cuántos registros se deben saltar antes de empezar a traer los de la página actual.
+
+
+    # Consulta ORM con paginación
     turnos = (
         db.query(Turno)
         .options(joinedload(Turno.persona))
         .filter(Turno.fecha == fecha)
         .order_by(Turno.hora.asc(), Turno.id.asc())
-        .all()
+        .offset(inicio) # indica desde qué registro empezar
+        .limit(pagina_limite) # limita la cantidad de registros traídos
+        .all() # ejecuta la consulta
     )
-
+    # En caso de que no haya turnos en esa página
     if not turnos:
-        raise HTTPException(status_code=404, detail=f"No hay turnos para la fecha {fecha}")
+        raise HTTPException(status_code=404,detail=f"No hay turnos para la fecha {fecha} en la página {pagina}")
 
-    datos = [
-        {
-            "id": t.id,
-            "fecha": str(t.fecha),
-            "hora": str(t.hora),
-            "estado": t.estado,
-            "persona": t.persona.nombre if t.persona else None
-        }
-        for t in turnos
-    ]
+    datos = turnos_to_dict(turnos)     # Transformar ORM a diccionario
 
-    csv_content = generar_csv(datos)
-
-
-    return Response(
-        content=csv_content,
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=turnos_{fecha}.csv"}
+    # Generar PDF y devolver respuesta
+    return pdf_response(datos, f"Turnos del día {fecha} (página {pagina})", f"turnos_{fecha}_p{pagina}"
     )
+

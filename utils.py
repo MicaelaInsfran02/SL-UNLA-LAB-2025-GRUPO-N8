@@ -15,6 +15,7 @@ from borb.pdf.canvas.color.color import HexColor
 from borb.pdf.canvas.layout.layout_element import Alignment
 import pandas as pd
 from io import StringIO
+from fastapi.responses import StreamingResponse
 
 
 #función calcular edad
@@ -55,42 +56,47 @@ def persona_limite_cancelados(db: Session):
 
 
 
-def generar_pdf_tabla(datos: list[dict], titulo: str) -> bytes:
-    pdf_buffer = BytesIO()
 
-    # Documento y página
-    doc = Document()
-    page = Page()
-    doc.add_page(page)
+# Generar CSV desde lista de diccionarios
+def generar_csv(datos: list[dict]) -> str:
+
+   #Recibe una lista de diccionarios y devuelve el contenido CSV como string.
+    df = pd.DataFrame(datos)
+    buffer = StringIO()
+    df.to_csv(buffer, index=False)
+    return buffer.getvalue()
+
+
+def generar_pdf_tabla(datos: list[dict], titulo: str) -> BytesIO:
+    # Crear buffer en memoria
+    buffer = BytesIO()  
+    doc = Document() 
+    page = Page() 
+    doc.add_page(page) 
     layout = SingleColumnLayout(page)
 
     # Título
     layout.add(
         Paragraph(
-            titulo.upper(),
-            font="Helvetica-Bold",
-            font_size=14,
-            horizontal_alignment=Alignment.CENTERED
+            titulo,
+            font="Helvetica-Bold", #fuente
+            font_size=14, #tamaño
+            horizontal_alignment=Alignment.LEFT #alineación
         )
     )
 
-    # Si no hay datos, mostrar mensaje
     if not datos:
         layout.add(Paragraph("No hay registros", font="Helvetica", font_size=11))
-        PDF.dumps(pdf_buffer, doc)
-        return pdf_buffer.getvalue()
+        PDF.dumps(buffer, doc)
+        buffer.seek(0) # volver al inicio del stream
+        return buffer
 
-    # Columnas a partir de las keys del primer dict
-    columnas = list(datos[0].keys())
-
-    # Tabla con anchos flexibles
-    tabla = FlexibleColumnWidthTable(
-    number_of_rows=len(datos) + 1,
-    number_of_columns=len(columnas)
+    columnas = list(datos[0].keys()) # Obtener nombres de columnas desde las claves del primer diccionario
+    tabla = FlexibleColumnWidthTable( 
+        number_of_rows=len(datos) + 1,  # +1 para la fila de encabezados
+        number_of_columns=len(columnas) # de columnas
     )
-
-
-    # Encabezados con estilo
+    # Encabezados
     for col in columnas:
         tabla.add(
             TableCell(
@@ -98,8 +104,7 @@ def generar_pdf_tabla(datos: list[dict], titulo: str) -> bytes:
                 background_color=HexColor("EAEAEA")
             )
         )
-
-    # Filas de datos
+    # Filas
     for fila in datos:
         for col in columnas:
             valor = fila.get(col, "")
@@ -113,18 +118,33 @@ def generar_pdf_tabla(datos: list[dict], titulo: str) -> bytes:
                 )
             )
 
-    # Agregar tabla al layout
-    layout.add(tabla)
+    layout.add(tabla) # Agregar tabla al layout
 
-    # Exportar
-    PDF.dumps(pdf_buffer, doc)
-    return pdf_buffer.getvalue()
+    # Guardar en buffer en memoria
+    PDF.dumps(buffer, doc)
+    buffer.seek(0)  # volver al inicio del stream
+    return buffer
 
-# Generar CSV desde lista de diccionarios
-def generar_csv(datos: list[dict]) -> str:
+# Convertir lista de turnos a lista de diccionarios
+def turnos_to_dict(turnos):
+    return [
+        {
+            "id": t.id,
+            "fecha": str(t.fecha),
+            "hora": str(t.hora),
+            "estado": t.estado,
+            "persona": t.persona.nombre if t.persona else None
+        }
+        for t in turnos
+    ]
 
-   #Recibe una lista de diccionarios y devuelve el contenido CSV como string.
-    df = pd.DataFrame(datos)
-    buffer = StringIO()
-    df.to_csv(buffer, index=False)
-    return buffer.getvalue()
+#- Generación de PDF en memoria y respuesta. El resultado es un BytesIo (un buffer en memoria, no en disco)
+def pdf_response(datos, titulo, nombre_archivo):
+    pdf_buffer = generar_pdf_tabla(datos, titulo) # El resultado es un BytesIo (un buffer en memoria, no en disco)
+    return StreamingResponse( 
+        pdf_buffer, # Devolver como respuesta de streaming
+        media_type="application/pdf", #  indica al navegador que el contenido es un archivo PDF.
+        headers={ # Indicar que es un archivo adjunto con nombre
+            "Content-Disposition": f"attachment; filename={nombre_archivo}.pdf" # Nombre del archivo
+        }
+    )

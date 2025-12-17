@@ -1,13 +1,30 @@
 {
 	"info": {
 		"_postman_id": "15125a2a-4a8c-4703-a7d7-5b3c21ebf490",
-		"name": "Postman Turnos Grupo 8",
-		"description": "Endpoints del Hito 1 y 2 del grupo 8",
+		"name": "Postman de Turnos - Grupo 8",
+		"description": "Colección de endpoints de la API de Turnos (FastAPI + SQLAlchemy + SQLite) desarrollada para el TP de Seminario de Lenguajes – Python (UNLa).  \n  \nIncluye operaciones CRUD de Personas, Contactos y Turnos, gestión de estado del turno (confirmar/cancelar/asistido) y endpoints de Reportes.  \n  \nLos reportes se generan en **JSON**, **CSV (Pandas)** y **PDF (Borb)** con parámetros de filtrado (fecha, período, mes/año, habilitación) y paginación donde aplica.  \n  \nPensada para probar rápidamente la API y validar respuestas, errores (400/404/422) y descargas de archivos",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "48652798",
 		"_collection_link": "https://rodridev22-215338.postman.co/workspace/Rodrigo-Sanchez's-Workspace~52e74b2b-410f-4ef0-8975-f2b0cbe860e8/collection/48652798-15125a2a-4a8c-4703-a7d7-5b3c21ebf490?action=share&source=collection_link&creator=48652798"
 	},
 	"item": [
+		{
+			"name": "Listar personas",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/personas",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"personas"
+					]
+				}
+			},
+			"response": []
+		},
 		{
 			"name": "Crear persona",
 			"request": {
@@ -35,24 +52,7 @@
 			"response": []
 		},
 		{
-			"name": "Listar personas",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{baseURL}}/personas",
-					"host": [
-						"{{baseURL}}"
-					],
-					"path": [
-						"personas"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Obtener persona por ID",
+			"name": "Obtener persona",
 			"request": {
 				"method": "GET",
 				"header": [],
@@ -179,6 +179,87 @@
 			"response": []
 		},
 		{
+			"name": "Obtener contacto",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/contactos/:contactoId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"contactos",
+						":contactoId"
+					],
+					"variable": [
+						{
+							"key": "contactoId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Actualizar contacto",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"email\": \"string\",\r\n  \"telefono\": 0,\r\n  \"direccion\": \"string\",\r\n  \"localidad\": \"string\",\r\n  \"persona_id\": 0\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/contactos/:contactoId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"contactos",
+						":contactoId"
+					],
+					"variable": [
+						{
+							"key": "contactoId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Eliminar contacto",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/contactos/:contactoId",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"contactos",
+						":contactoId"
+					],
+					"variable": [
+						{
+							"key": "contactoId",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "Listar turnos",
 			"request": {
 				"method": "GET",
@@ -222,7 +303,7 @@
 			"response": []
 		},
 		{
-			"name": "Obtener turno por ID",
+			"name": "Obtener turno",
 			"request": {
 				"method": "GET",
 				"header": [],
@@ -542,6 +623,304 @@
 						{
 							"key": "habilitada",
 							"value": "true"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar PDF Estado Personas",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/pdf/estado-personas?habilitada=true",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"pdf",
+						"estado-personas"
+					],
+					"query": [
+						{
+							"key": "habilitada",
+							"value": "true"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar CSV Estado Personas",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/csv/estado-personas?habilitada=true",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"csv",
+						"estado-personas"
+					],
+					"query": [
+						{
+							"key": "habilitada",
+							"value": "true"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar PDF Turnos Cancelados por Mes",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/pdf/turnos-cancelados-por-mes?anio=2025&mes=12&pagina=1&pagina_limite=20",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"pdf",
+						"turnos-cancelados-por-mes"
+					],
+					"query": [
+						{
+							"key": "anio",
+							"value": "2025"
+						},
+						{
+							"key": "mes",
+							"value": "12"
+						},
+						{
+							"key": "pagina",
+							"value": "1"
+						},
+						{
+							"key": "pagina_limite",
+							"value": "20"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar CSV Turnos Cancelados por Mes",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/csv/turnos-cancelados-por-mes?anio=2025&mes=12&pagina=1&pagina_limite=20",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"csv",
+						"turnos-cancelados-por-mes"
+					],
+					"query": [
+						{
+							"key": "anio",
+							"value": "2025"
+						},
+						{
+							"key": "mes",
+							"value": "12"
+						},
+						{
+							"key": "pagina",
+							"value": "1"
+						},
+						{
+							"key": "pagina_limite",
+							"value": "20"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar PDF Turnos Cancelados Minimo",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/pdf/turnos-cancelados?min=1",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"pdf",
+						"turnos-cancelados"
+					],
+					"query": [
+						{
+							"key": "min",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar CSV Turnos Cancelados Minimo",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/csv/turnos-cancelados?min=1",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"csv",
+						"turnos-cancelados"
+					],
+					"query": [
+						{
+							"key": "min",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar PDF Turnos Por Fecha",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/pdf/turnos-por-fecha?fecha=2025-12-17&pagina=1&pagina_limite=20",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"pdf",
+						"turnos-por-fecha"
+					],
+					"query": [
+						{
+							"key": "fecha",
+							"value": "2025-12-17"
+						},
+						{
+							"key": "pagina",
+							"value": "1"
+						},
+						{
+							"key": "pagina_limite",
+							"value": "20"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar CSV Turnos Por Fecha",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/csv/turnos-por-fecha?fecha=2025-12-17&pagina=1&pagina_limite=20",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"csv",
+						"turnos-por-fecha"
+					],
+					"query": [
+						{
+							"key": "fecha",
+							"value": "2025-12-17"
+						},
+						{
+							"key": "pagina",
+							"value": "1"
+						},
+						{
+							"key": "pagina_limite",
+							"value": "20"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar PDF Turnos Confirmados Copy",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/pdf/turnos-confirmados?desde=2025-01-30&hasta=2025-12-30",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"pdf",
+						"turnos-confirmados"
+					],
+					"query": [
+						{
+							"key": "desde",
+							"value": "2025-01-30"
+						},
+						{
+							"key": "hasta",
+							"value": "2025-12-30"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Descargar CSV Turnos Confirmados",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/reportes/csv/turnos-confirmados?desde=2025-01-30&hasta=2025-12-30",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"reportes",
+						"csv",
+						"turnos-confirmados"
+					],
+					"query": [
+						{
+							"key": "desde",
+							"value": "2025-01-30"
+						},
+						{
+							"key": "hasta",
+							"value": "2025-12-30"
 						}
 					]
 				}

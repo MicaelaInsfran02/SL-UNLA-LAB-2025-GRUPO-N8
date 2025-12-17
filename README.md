@@ -1,101 +1,136 @@
-Integrantes grupo8:
-
-Micaela Insfran, Gaston Madeo, Rodrigo Emanuel Sanchez, Manuel Shocron
-
-Enlace al video: https://drive.google.com/drive/folders/1wLZTST5lK3rzjWiUni0NEx9OjTqoGnjg
-               
-
-Enlace a postman: https://rodridev22-215338.postman.co/workspace/Rodrigo-Sanchez's-Workspace~52e74b2b-410f-4ef0-8975-f2b0cbe860e8/collection/48652798-15125a2a-4a8c-4703-a7d7-5b3c21ebf490?action=share&creator=48652798
-
 # SL-UNLA-LAB-2025-GRUPO-N8
 
+API REST para **gestión de Personas, Contactos y Turnos**, con **reportes descargables en PDF y CSV**.
+
+---
+
+## Integrantes (Grupo 8)
+
+- Micaela Insfran  
+- Gaston Madeo  
+- Rodrigo Emanuel Sanchez  
+- Manuel Shocron  
+
+---
+
 ## Requisitos previos
-- Python 3.10 o superior instalado en el sistema.
-- pip instalado y actualizado (verificar con `python -m pip --version`; actualiza con `python -m pip install --upgrade pip` si es necesario).
+
+- **Python 3.10+** instalado.
+- **pip** instalado y actualizado.
+
+> Ejecutar siempre los comandos desde la **carpeta raíz** del proyecto.
+
+---
 
 ## Crear y activar el entorno virtual
-1. Crear el venv en la raiz del proyecto:
+
+1) Crear el entorno virtual en la raíz del proyecto:
+
 ```bash
 python -m venv .venv
 ```
-2. Activar el entorno:
 
-- Windows (PowerShell):
+2) Activar el entorno:
+
+**Windows (PowerShell):**
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
-- Linux / macOS:
+**Linux / macOS:**
 ```bash
 source .venv/bin/activate
 ```
 
-> Ejecutar siempre los comandos desde la carpeta raiz del proyecto.
+---
 
-## Instalar las librerias del proyecto
+## Instalar dependencias
+
 Con el entorno virtual activo:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-## Ejecutar la aplicacion
+---
+
+## Ejecutar la aplicación
+
 Con el entorno virtual activo:
+
 ```bash
 uvicorn app:app --reload
 ```
 
+Cuando Uvicorn levanta, verás algo como:
 
+```
+Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+```
 
-ABM PERSONAS:
+### Acceso a la API
 
-1- POST: Micaela Insfran
+- **Swagger UI:** `http://127.0.0.1:8000/docs`
 
-2- GET: Micaela Insfran
+---
 
-3- GET/por id: Rodrigo Sanchez
+## Postman
 
-4- PUT: Rodrigo Sanchez
+El archivo de colección de Postman debe estar en la **raíz del proyecto**:
 
-5- DELETE: Micaela Insfran
+- `Postman Turnos Grupo 8.postman_collection`
 
-ABM TURNO:
+---
 
-6- POST: Manuel Shocron
+# Endpoints implementados y responsables
 
-7- GET: Manuel Shocron
+## ABM Personas
 
-8- GET/ por id: Manuel Shocron
+1. **POST** `/personas` — Micaela Insfran  
+2. **GET** `/personas` — Micaela Insfran  
+3. **GET** `/personas/{persona_id}` — Rodrigo Emanuel Sanchez  
+4. **PUT** `/personas/{persona_id}` — Rodrigo Emanuel Sanchez  
+5. **DELETE** `/personas/{persona_id}` — Micaela Insfran  
 
-9- GET/Turnos disponibles: Manuel Shocron
+---
 
-10- PUT: Rodrigo Sanchez
+## ABM Turnos
 
-11- DELETE: Gaston Madeo
+6. **POST** `/turnos` — Manuel Shocron  
+7. **GET** `/turnos` — Manuel Shocron  
+8. **GET** `/turnos/{turno_id}` — Manuel Shocron  
+9. **GET** `/turnos-disponibles` — Manuel Shocron  
+10. **PUT** `/turnos/{turno_id}` — Rodrigo Emanuel Sanchez  
+11. **DELETE** `/turnos/{turno_id}` — Gaston Madeo  
 
+---
 
-ABM CONTACTO:
+## ABM Contactos
 
-12- POST: Micaela Insfran
+12. **POST** `/contactos` — Micaela Insfran  
+13. **GET** `/contactos` — Micaela Insfran  
+14. **PUT** `/contactos/{contacto_id}` — Micaela Insfran  
+15. **DELETE** `/contactos/{contacto_id}` — Micaela Insfran  
+16. **GET** `/contactos/{contacto_id}` — Gaston Madeo  
 
-13- GET: Micaela Insfran
+---
 
-14- PUT: Micaela Insfran
+## Reportes en PDF (Borb)
 
-15- DELETE: Micaela Insfran
+- **GET** `/reportes/pdf/turnos-por-fecha?fecha=YYYY-MM-DD` — Micaela Insfran  
+- **GET** `/reportes/pdf/turnos-cancelados-por-mes` — Micaela Insfran  
+- **GET** `/reportes/pdf/turnos-por-persona?dni=12345678` — Micaela Insfran  
+- **GET** `/reportes/pdf/turnos-cancelados?min=5` — Rodrigo Emanuel Sanchez  
+- **GET** `/reportes/pdf/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` — Rodrigo Emanuel Sanchez  
+- **GET** `/reportes/pdf/estado-personas?habilitada=true/false` — Rodrigo Emanuel Sanchez  
 
-16- GET por ID: Gaston Madeo
+---
 
+## Reportes en CSV (Pandas)
 
-ENDPOINTS DE REPORTES:
-
-GET /reportes/turnos-por-fecha?fecha=YYYY-MM-DD     Micaela Insfran 
-
-GET /reportes/turnos-cancelados-por-mes             Micaela Insfran 
-
-GET /reportes/turnos-por-persona?dni=12345678       Manuel Shocron  
-
-GET /reportes/turnos-cancelados?min=5               Manuel Shocron
-
-GET /reportes/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD   Rodrigo Sanchez 
-
-GET /reportes/estado-personas?habilitada=true/false                  Rodrigo Sanchez
+- **GET** `/reportes/csv/turnos-por-fecha?fecha=YYYY-MM-DD` — Micaela Insfran  
+- **GET** `/reportes/csv/turnos-cancelados-por-mes` — Micaela Insfran  
+- **GET** `/reportes/csv/turnos-por-persona?dni=12345678` — Micaela Insfran  
+- **GET** `/reportes/csv/turnos-cancelados?min=5` — Rodrigo Emanuel Sanchez  
+- **GET** `/reportes/csv/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` — Rodrigo Emanuel Sanchez  
+- **GET** `/reportes/csv/estado-personas?habilitada=true/false` — Rodrigo Emanuel Sanchez  

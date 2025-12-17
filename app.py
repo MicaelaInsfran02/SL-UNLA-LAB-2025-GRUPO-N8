@@ -751,61 +751,6 @@ def reporte_estado_personas(
         for p in personas                                       # itera sobre todas las personas filtradas
     ]
 
-# GET reportes: personas habilitadas o inhabilitadas en CSV --------------------------
-@app.get("/reportes/csv/estado-personas")
-def descargar_csv_estado_personas(
-    # query param obligatorio: true para habilitadas, false para inhabilitadas
-    habilitada: bool = Query(..., description="true para habilitadas, false para inhabilitadas"),
-    # inyección de la sesión de base de datos
-    db: Session = Depends(get_db)
-):
-    # Buscar en la base todas las personas con el estado pedido (habilitada / inhabilitada)
-    personas = db.query(Persona).filter(Persona.habilitado == habilitada).all()
-
-    # Si no se encontró ninguna persona con ese estado, devolvemos 404
-    if not personas:
-        estado_txt = "habilitadas" if habilitada else "inhabilitadas"
-        raise HTTPException(
-            status_code=404,
-            detail=f"No hay personas {estado_txt} para sacar turno."
-        )
-
-    # Convertimos la lista de objetos Persona en una lista de diccionarios
-    # Cada diccionario va a ser una fila del CSV
-    datos = []
-    for p in personas:
-        datos.append(
-            {
-                "id": p.id,                                # id de la persona
-                "nombre": p.nombre,                        # nombre completo
-                "dni": p.dni,                              # documento
-                "fecha_nacimiento": str(p.fecha_nacimiento),  # fecha de nacimiento (string)
-                "edad": calcular_edad(p.fecha_nacimiento), # edad calculada
-                "habilitado": p.habilitado                 # True / False
-            }
-        )
-
-    # Armamos título y nombre de archivo según el estado
-    if habilitada:
-        titulo = "Personas habilitadas para sacar turno"
-        nombre_archivo = "personas_habilitadas"
-    else:
-        titulo = "Personas inhabilitadas para sacar turno"
-        nombre_archivo = "personas_inhabilitadas"
-
-    # Generar el CSV en memoria usando la función utilitaria generar_csv
-    csv_buffer = generar_csv(datos, titulo=titulo)
-
-    # Devolver el CSV como archivo descargable (sin guardarlo en disco)
-    return StreamingResponse(
-        csv_buffer,                   # buffer en memoria con el CSV
-        media_type="text/csv",        # tipo de contenido CSV
-        headers={
-            "Content-Disposition": f"attachment; filename={nombre_archivo}.csv"
-        }
-    )
-
-
 # GET reportes: personas habilitadas o inhabilitadas para sacar turno (PDF) --------------------------
 @app.get("/reportes/pdf/estado-personas")
 def descargar_pdf_estado_personas(
@@ -831,7 +776,6 @@ def descargar_pdf_estado_personas(
     for p in personas:
         datos.append(
             {
-                "id": p.id,                                # id de la persona
                 "nombre": p.nombre,                        # nombre completo
                 "dni": p.dni,                              # documento
                 "fecha_nacimiento": str(p.fecha_nacimiento),  # fecha de nacimiento (como string)
@@ -851,8 +795,58 @@ def descargar_pdf_estado_personas(
     # Generamos y devolvemos el PDF usando la función utilitaria pdf_response
     return pdf_response(datos, titulo, nombre_archivo)
 
+# GET reportes: personas habilitadas o inhabilitadas en CSV --------------------------
+@app.get("/reportes/csv/estado-personas")
+def descargar_csv_estado_personas(
+    # query param obligatorio: true para habilitadas, false para inhabilitadas
+    habilitada: bool = Query(..., description="true para habilitadas, false para inhabilitadas"),
+    # inyección de la sesión de base de datos
+    db: Session = Depends(get_db)
+):
+    # Buscar en la base todas las personas con el estado pedido (habilitada / inhabilitada)
+    personas = db.query(Persona).filter(Persona.habilitado == habilitada).all()
 
-#GET reportes: turnos cancelados por mes en PDF con paginación -------------------------- Micaela Insfran
+    # Si no se encontró ninguna persona con ese estado, devolvemos 404
+    if not personas:
+        estado_txt = "habilitadas" if habilitada else "inhabilitadas"
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay personas {estado_txt} para sacar turno."
+        )
+
+    # Convertimos la lista de objetos Persona en una lista de diccionarios
+    # Cada diccionario va a ser una fila del CSV
+    datos = []
+    for p in personas:
+        datos.append(
+            {
+                "nombre": p.nombre,                        # nombre completo
+                "dni": p.dni,                              # documento
+                "fecha_nacimiento": str(p.fecha_nacimiento),  # fecha de nacimiento (string)
+                "edad": calcular_edad(p.fecha_nacimiento), # edad calculada
+                "habilitado": p.habilitado                 # True / False
+            }
+        )
+
+    # Armamos nombre de archivo según el estado
+    if habilitada:
+        nombre_archivo = "personas_habilitadas"
+    else:
+        nombre_archivo = "personas_inhabilitadas"
+
+    # Generar el CSV en memoria usando la función utilitaria generar_csv
+    csv_buffer = generar_csv(datos)
+
+    # Devolver el CSV como archivo descargable (sin guardarlo en disco)
+    return StreamingResponse(
+        csv_buffer,                   # buffer en memoria con el CSV
+        media_type="text/csv",        # tipo de contenido CSV
+        headers={
+            "Content-Disposition": f"attachment; filename={nombre_archivo}.csv"
+        }
+    )
+
+#GET reportes: turnos cancelados por mes en PDF con paginación --------------------------
 @app.get("/reportes/pdf/turnos-cancelados-por-mes")
 def descargar_pdf_turnos_cancelados_por_mes(
     anio: int = Query(..., description="Año en formato AAAA"), #parametro obligatorio
@@ -866,11 +860,11 @@ def descargar_pdf_turnos_cancelados_por_mes(
 
     # Consulta ORM con paginación
     turnos = (
-        db.query(Turno)  #inicio la consulta sobre el modelo turno 
-        .options(joinedload(Turno.persona)) #cargamos la relacion con persona 
-        .filter(Turno.estado == "cancelado") # filtramos por turnos cancelados 
-        .filter(extract("year", Turno.fecha) == anio) # filtramos por año
-        .filter(extract("month", Turno.fecha) == mes) # filtramos por mes
+        db.query(Turno)
+        .options(joinedload(Turno.persona))
+        .filter(Turno.estado == "cancelado")
+        .filter(extract("year", Turno.fecha) == anio)
+        .filter(extract("month", Turno.fecha) == mes)
         .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc()) # ordena por fecha, hora e id
         .offset(inicio) # indica desde qué registro empezar
         .limit(pagina_limite) # limita la cantidad de registros traídos
@@ -888,9 +882,155 @@ def descargar_pdf_turnos_cancelados_por_mes(
     return pdf_response(
         datos, f"Turnos cancelados - {anio}-{mes:02d} (página {pagina})", f"turnos_cancelados_{anio}_{mes:02d}_p{pagina}")
 
+@app.get("/reportes/csv/turnos-cancelados-por-mes")
+def descargar_csv_turnos_cancelados_por_mes(
+    anio: int = Query(..., description="Año en formato AAAA"),
+    mes: int = Query(..., ge=1, le=12, description="Mes en formato 1-12"),
+    pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
+    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
+    db: Session = Depends(get_db)
+):
+    # Calcular desde qué registro empezar
+    inicio = (pagina - 1) * pagina_limite
+
+    # Consulta ORM con paginación
+    turnos = (
+        db.query(Turno)
+        .options(joinedload(Turno.persona))
+        .filter(Turno.estado == "cancelado")
+        .filter(extract("year", Turno.fecha) == anio)
+        .filter(extract("month", Turno.fecha) == mes)
+        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc())
+        .offset(inicio)
+        .limit(pagina_limite)
+        .all()
+    )
+
+    if not turnos:
+        raise HTTPException( status_code=404, detail=f"No hay turnos cancelados para {anio}-{mes:02d} en la página {pagina}")
+
+    # Transformar ORM → dict
+    datos = turnos_to_dict(turnos)
+
+    # Generar CSV en memoria con Pandas
+    csv_buffer = generar_csv( datos )
+
+    # Devolver archivo CSV
+    return StreamingResponse(
+        csv_buffer,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=turnos_cancelados_{anio}_{mes:02d}_p{pagina}.csv"
+        }
+    )
+
+# GET reportes: personas con mínimo N turnos cancelados (PDF) --------------------------
+@app.get("/reportes/pdf/turnos-cancelados")
+def descargar_pdf_turnos_cancelados_minimo(
+    min_cancelados: int = Query(..., alias="min", ge=1, description="Mínimo de turnos cancelados por persona"),
+    db: Session = Depends(get_db)
+):
+    # 0) Si no existe ningún turno cancelado en toda la BD, corto rápido
+    total_cancelados = (
+        db.query(func.count(Turno.id))
+        .filter(Turno.estado == ESTADO_TURNO_CANCELADO)
+        .scalar()
+    ) or 0
+
+    if total_cancelados == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="No hay turnos cancelados registrados."
+        )
+
+    # 1) Subconsulta: cantidad de cancelados por persona (solo los que cumplen el mínimo)
+    subq = (
+        db.query(
+            Turno.persona_id.label("persona_id"),
+            func.count(Turno.id).label("cancelados")
+        )
+        .filter(Turno.estado == ESTADO_TURNO_CANCELADO)
+        .group_by(Turno.persona_id)
+        .having(func.count(Turno.id) >= min_cancelados)
+        .subquery()
+    )
+
+    # 2) Traigo personas + su cantidad de cancelados (cumpliendo min)
+    filas = (
+        db.query(Persona, subq.c.cancelados)
+        .join(subq, Persona.id == subq.c.persona_id)
+        .order_by(subq.c.cancelados.desc(), Persona.nombre.asc(), Persona.id.asc())
+        .all()
+    )
+
+    # 3) Si no hay personas que cumplan el mínimo, 404
+    if not filas:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay personas con {min_cancelados} o más turnos cancelados."
+        )
+
+    # 4) Armo filas del PDF (lista de dicts)
+    datos = [
+        {
+            "nombre": p.nombre,
+            "dni": p.dni,
+            "cancelados": int(cant)
+        }
+        for (p, cant) in filas
+    ]
+
+    # 5) Título y nombre del archivo
+    titulo = f"Personas con {min_cancelados} o más turnos cancelados"
+    nombre_archivo = f"personas_con_{min_cancelados}_o_mas_turnos_cancelados"
+
+    # 6) Generar PDF y devolver
+    return pdf_response(datos, titulo, nombre_archivo)
+
+# GET reportes: personas con N o más turnos cancelados (CSV) --------------------------
+@app.get("/reportes/csv/turnos-cancelados")
+def descargar_csv_turnos_cancelados_minimo(
+    minimo: int = Query(5, alias="min", ge=1, description="Mínimo de turnos cancelados por persona"),
+    db: Session = Depends(get_db)
+):
+    filas = (
+        db.query(
+            Persona.nombre.label("nombre"),
+            Persona.dni.label("dni"),
+            func.count(Turno.id).label("cancelados")
+        )
+        .join(Turno, Turno.persona_id == Persona.id)
+        .filter(Turno.estado == ESTADO_TURNO_CANCELADO)
+        .group_by(Persona.id, Persona.nombre, Persona.dni)
+        .having(func.count(Turno.id) >= minimo)
+        .order_by(func.count(Turno.id).desc(), Persona.nombre.asc())
+        .all()
+    )
+
+    if not filas:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay personas con {minimo} o más turnos cancelados."
+        )
+
+    # Construir lista de diccionarios para el CSV
+    datos = [
+        {"nombre": nombre, "dni": dni, "cancelados": cancelados}
+        for (nombre, dni, cancelados) in filas
+    ]
+
+    csv_buffer = generar_csv(datos)
+
+    return StreamingResponse(
+        csv_buffer,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=turnos_cancelados_min_{minimo}.csv"
+        }
+    )
 
 
-#GET reportes: turnos por fecha en PDF con paginación -------------------------- Micaela Insfran
+#GET reportes: turnos por fecha en PDF con paginación --------------------------
 @app.get("/reportes/pdf/turnos-por-fecha")
 def descargar_pdf_turnos_por_fecha(
     fecha: date = Query(..., description="Fecha en formato AAAA-MM-DD"), #parametro obligatorio
@@ -905,7 +1045,7 @@ def descargar_pdf_turnos_por_fecha(
     # Consulta ORM con paginación
     turnos = (
         db.query(Turno)
-        .options(joinedload(Turno.persona)) #trae las relaciones de persona con turno
+        .options(joinedload(Turno.persona))
         .filter(Turno.fecha == fecha)
         .order_by(Turno.hora.asc(), Turno.id.asc())
         .offset(inicio) # indica desde qué registro empezar
@@ -922,14 +1062,13 @@ def descargar_pdf_turnos_por_fecha(
     return pdf_response(datos, f"Turnos del día {fecha} (página {pagina})", f"turnos_{fecha}_p{pagina}"
     )
 
-
-# GET reportes: turnos por persona en PDF con paginación -------------------------- Micaela Insfran
-@app.get("/reportes/pdf/turnos-por-persona")
-def descargar_pdf_turnos_por_persona(
-    dni: str = Query(..., description="DNI de la persona"),  # parametro obligatorio
+@app.get("/reportes/csv/turnos-por-fecha")
+def descargar_csv_turnos_por_fecha(
+    fecha: date = Query(..., description="Fecha en formato AAAA-MM-DD"),
     pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
     pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
-    db: Session = Depends(get_db) ):
+    db: Session = Depends(get_db)
+):
     # Calcular desde qué registro empezar
     inicio = (pagina - 1) * pagina_limite
 
@@ -937,85 +1076,9 @@ def descargar_pdf_turnos_por_persona(
     turnos = (
         db.query(Turno)
         .options(joinedload(Turno.persona))
-        .join(Persona)  # necesario para filtrar por DNI
-        .filter(Persona.dni == dni)
-        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc())
-        .offset(inicio)
-        .limit(pagina_limite)
-        .all()
-    )
-
-    # Validación: no hay turnos en esa página
-    if not turnos:
-        raise HTTPException( status_code=404, detail=f"No hay turnos para la persona con DNI {dni} en la página {pagina}")
-
-    # Transformar ORM a diccionario
-    datos = turnos_to_dict(turnos)
-
-    # Generar PDF y devolver respuesta
-    return pdf_response(
-        datos,
-        f"Turnos por persona - DNI {dni} (página {pagina})", f"turnos_por_persona_{dni}_p{pagina}"
-    )
-
-# reportes: turnos por persona en CSV con paginación -------------------------- Micaela Insfran
-@app.get("/reportes/csv/turnos-por-persona")
-def descargar_csv_turnos_por_persona(
-    dni: str = Query(..., description="DNI de la persona"), #parametro obligatorio
-    pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
-    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
-    db: Session = Depends(get_db) ):
-
-    # Calcular desde qué registro empezar
-    inicio = (pagina - 1) * pagina_limite
-
-    # Consulta ORM con paginación
-    turnos = (
-        db.query(Turno)
-        .options(joinedload(Turno.persona))  # trae la relación persona
-        .join(Persona)                       # necesario para filtrar por DNI
-        .filter(Persona.dni == dni)
-        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc())
-        .offset(inicio)
-        .limit(pagina_limite)
-        .all() )
-
-    if not turnos:
-        raise HTTPException(
-            status_code=404, detail=f"No hay turnos para la persona con DNI {dni} en la página {pagina}" )
-
-    # Transformar ORM → dict
-    datos = turnos_to_dict(turnos)
-
-    # Generar CSV en memoria con Pandas
-    csv_buffer = generar_csv(datos)
-
-    # Devolver archivo CSV
-    return StreamingResponse(
-        csv_buffer,
-        media_type="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename=turnos_persona_{dni}_p{pagina}.csv"
-        }
-    )
-
-# reportes: turnos por fecha en CSV con paginación -------------------------- Micaela Insfran
-@app.get("/reportes/csv/turnos-por-fecha")
-def descargar_csv_turnos_por_fecha(
-    fecha: date = Query(..., description="Fecha en formato AAAA-MM-DD"),
-    pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
-    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
-    db: Session = Depends(get_db) ):
-    # Calcular desde qué registro empezar
-    inicio = (pagina - 1) * pagina_limite
-
-    # Consulta ORM con paginación
-    turnos = (
-        db.query(Turno)
-        .options(joinedload(Turno.persona)) #trae las relaciones de persona con turno
         .filter(Turno.fecha == fecha)
         .order_by(Turno.hora.asc(), Turno.id.asc())
-        .offset(inicio) # indica desde qué registro empezar
+        .offset(inicio)
         .limit(pagina_limite)
         .all()
     )
@@ -1028,7 +1091,7 @@ def descargar_csv_turnos_por_fecha(
     datos = turnos_to_dict(turnos)
 
     # Generar CSV en memoria con Pandas
-    csv_buffer = generar_csv(datos)
+    csv_buffer = generar_csv( datos )
 
     # Devolver archivo CSV
     return StreamingResponse(
@@ -1038,68 +1101,6 @@ def descargar_csv_turnos_por_fecha(
             "Content-Disposition": f"attachment; filename=turnos_{fecha}_p{pagina}.csv"
         }
     )
-
-# GET reportes: turnos confirmados en un período en CSV --------------------------
-@app.get("/reportes/csv/turnos-confirmados")
-def descargar_csv_turnos_confirmados(
-    # parámetro obligatorio: fecha desde (formato AAAA-MM-DD)
-    desde: date = Query(..., description="Fecha desde (AAAA-MM-DD)"),
-    # parámetro obligatorio: fecha hasta (formato AAAA-MM-DD)
-    hasta: date = Query(..., description="Fecha hasta (AAAA-MM-DD)"),
-    # inyección de la sesión de base de datos
-    db: Session = Depends(get_db)
-):
-    # Validar que la fecha "desde" no sea mayor que "hasta"
-    if desde > hasta:
-        raise HTTPException(
-            status_code=400,
-            detail="'desde' no puede ser mayor que 'hasta'."
-        )
-
-    # Consultar todos los turnos con estado "confirmado" dentro del período
-    turnos = (
-        db.query(Turno)                               # armo la query sobre la tabla Turno
-        .options(joinedload(Turno.persona))          # cargo también la relación persona en la misma consulta
-        .filter(
-            Turno.estado == ESTADO_TURNO_CONFIRMADO, # solo turnos confirmados
-            Turno.fecha >= desde,                    # fecha mayor o igual a "desde"
-            Turno.fecha <= hasta                     # fecha menor o igual a "hasta"
-        )
-        .order_by(
-            Turno.fecha.asc(),                       # ordeno por fecha ascendente
-            Turno.hora.asc(),                        # luego por hora ascendente
-            Turno.id.asc()                           # y por id para desempatar
-        )
-        .all()                                       # ejecuto la consulta y obtengo una lista de Turno
-    )
-
-    # Si no hay turnos confirmados en ese período, devolvemos 404
-    if not turnos:
-        raise HTTPException(
-            status_code=404,
-            detail="No hay turnos confirmados en el período indicado."
-        )
-
-    # Transformar la lista de objetos Turno a una lista de diccionarios
-    # con los campos id, fecha, hora, estado y persona (nombre)
-    datos = turnos_to_dict(turnos)
-
-    # Armamos un título descriptivo para el CSV (primera línea del archivo)
-    titulo = f"Turnos confirmados desde {desde} hasta {hasta}"
-
-    # Generamos el CSV en memoria usando la función utilitaria generar_csv
-    csv_buffer = generar_csv(datos, titulo=titulo)
-
-    # Devolver el CSV como archivo descargable
-    return StreamingResponse(
-        csv_buffer,                                  # buffer en memoria con el CSV
-        media_type="text/csv",                       # tipo de contenido CSV
-        headers={
-            # nombre del archivo que se descargará
-            "Content-Disposition": f"attachment; filename=turnos_confirmados_{desde}_a_{hasta}.csv"
-        }
-    )
-
 
 # GET reportes: turnos confirmados en un período en PDF --------------------------
 @app.get("/reportes/pdf/turnos-confirmados")
@@ -1155,45 +1156,62 @@ def descargar_pdf_turnos_confirmados(
     # que devuelve un StreamingResponse con el archivo PDF
     return pdf_response(datos, titulo, nombre_archivo)
 
-# reportes: turnos cancelados por mes en CSV con paginación -------------------------- Micaela Insfran
-@app.get("/reportes/csv/turnos-cancelados-por-mes")
-def descargar_csv_turnos_cancelados_por_mes(
-    anio: int = Query(..., description="Año en formato AAAA"),
-    mes: int = Query(..., ge=1, le=12, description="Mes en formato 1-12"),
-    pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
-    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
+# GET reportes: turnos confirmados en un período en CSV --------------------------
+@app.get("/reportes/csv/turnos-confirmados")
+def descargar_csv_turnos_confirmados(
+    # parámetro obligatorio: fecha desde (formato AAAA-MM-DD)
+    desde: date = Query(..., description="Fecha desde (AAAA-MM-DD)"),
+    # parámetro obligatorio: fecha hasta (formato AAAA-MM-DD)
+    hasta: date = Query(..., description="Fecha hasta (AAAA-MM-DD)"),
+    # inyección de la sesión de base de datos
     db: Session = Depends(get_db)
 ):
-    # Calcular desde qué registro empezar
-    inicio = (pagina - 1) * pagina_limite
+    # Validar que la fecha "desde" no sea mayor que "hasta"
+    if desde > hasta:
+        raise HTTPException(
+            status_code=400,
+            detail="'desde' no puede ser mayor que 'hasta'."
+        )
 
-    # Consulta ORM con paginación
+    # Consultar todos los turnos con estado "confirmado" dentro del período
     turnos = (
-        db.query(Turno)
-        .options(joinedload(Turno.persona))
-        .filter(Turno.estado == "cancelado")
-        .filter(extract("year", Turno.fecha) == anio)
-        .filter(extract("month", Turno.fecha) == mes)
-        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc())
-        .offset(inicio)
-        .limit(pagina_limite)
-        .all()
+        db.query(Turno)                               # armo la query sobre la tabla Turno
+        .options(joinedload(Turno.persona))          # cargo también la relación persona en la misma consulta
+        .filter(
+            Turno.estado == ESTADO_TURNO_CONFIRMADO, # solo turnos confirmados
+            Turno.fecha >= desde,                    # fecha mayor o igual a "desde"
+            Turno.fecha <= hasta                     # fecha menor o igual a "hasta"
+        )
+        .order_by(
+            Turno.fecha.asc(),                       # ordeno por fecha ascendente
+            Turno.hora.asc(),                        # luego por hora ascendente
+            Turno.id.asc()                           # y por id para desempatar
+        )
+        .all()                                       # ejecuto la consulta y obtengo una lista de Turno
     )
 
+    # Si no hay turnos confirmados en ese período, devolvemos 404
     if not turnos:
-        raise HTTPException( status_code=404, detail=f"No hay turnos cancelados para {anio}-{mes:02d} en la página {pagina}")
+        raise HTTPException(
+            status_code=404,
+            detail="No hay turnos confirmados en el período indicado."
+        )
 
-    # Transformar ORM → dict
+    # Transformar la lista de objetos Turno a una lista de diccionarios
+    # con los campos id, fecha, hora, estado y persona (nombre)
     datos = turnos_to_dict(turnos)
 
-    # Generar CSV en memoria con Pandas
-    csv_buffer = generar_csv( datos)
+    # Armamos un título descriptivo para el CSV (primera línea del archivo)
 
-    # Devolver archivo CSV
+    # Generamos el CSV en memoria usando la función utilitaria generar_csv
+    csv_buffer = generar_csv(datos)
+
+    # Devolver el CSV como archivo descargable
     return StreamingResponse(
-        csv_buffer,
-        media_type="text/csv",
+        csv_buffer,                                  # buffer en memoria con el CSV
+        media_type="text/csv",                       # tipo de contenido CSV
         headers={
-            "Content-Disposition": f"attachment; filename=turnos_cancelados_{anio}_{mes:02d}_p{pagina}.csv"
+            # nombre del archivo que se descargará
+            "Content-Disposition": f"attachment; filename=turnos_confirmados_{desde}_a_{hasta}.csv"
         }
     )

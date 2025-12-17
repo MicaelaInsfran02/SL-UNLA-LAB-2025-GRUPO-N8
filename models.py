@@ -18,7 +18,7 @@ class PersonaOut(BaseModel):
     habilitado: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Entrada
 class ContactoIn(BaseModel):
@@ -38,7 +38,7 @@ class ContactoOut(BaseModel):
     persona_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes= True
 # Entrada
 class TurnoIn(BaseModel):
     fecha: date
@@ -53,7 +53,7 @@ class TurnoOut(BaseModel):
     persona: PersonaOut
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TurnoCancelado(BaseModel):
     id: int
@@ -88,7 +88,7 @@ class TurnoSinFecha(BaseModel):
     persona: PersonaOut
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TurnoSimple(BaseModel):
     id: int
@@ -110,7 +110,7 @@ class TurnoSinFecha(BaseModel):
     persona: PersonaOut
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UsuarioConfirmado(BaseModel):
     turno_id: int

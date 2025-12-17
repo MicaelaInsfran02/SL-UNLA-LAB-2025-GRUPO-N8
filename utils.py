@@ -57,11 +57,11 @@ def persona_limite_cancelados(db: Session):
 # Generar PDF con tabla de datos
 def generar_pdf_tabla(datos: list[dict], titulo: str) -> BytesIO:
     # Crear buffer en memoria
-    buffer = BytesIO()  
-    doc = Document() 
-    page = Page() 
-    doc.add_page(page) 
-    layout = SingleColumnLayout(page)
+    buffer = BytesIO() # Crear buffer en memoria
+    doc = Document() # Crear documento PDF vacio
+    page = Page() # Crear página nueva 
+    doc.add_page(page)  # Agregar página al documento
+    layout = SingleColumnLayout(page) # Crear layout de una sola columna en la página
 
     # Título
     layout.add(
@@ -71,16 +71,10 @@ def generar_pdf_tabla(datos: list[dict], titulo: str) -> BytesIO:
             font_size=14, #tamaño
             horizontal_alignment=Alignment.LEFT #alineación
         )
-    )
-
-    if not datos:
-        layout.add(Paragraph("No hay registros", font="Helvetica", font_size=11))
-        PDF.dumps(buffer, doc)
-        buffer.seek(0) # volver al inicio del stream
-        return buffer
+    ) 
 
     columnas = list(datos[0].keys()) # Obtener nombres de columnas desde las claves del primer diccionario
-    tabla = FlexibleColumnWidthTable( 
+    tabla = FlexibleColumnWidthTable( # crear tabla
         number_of_rows=len(datos) + 1,  # +1 para la fila de encabezados
         number_of_columns=len(columnas) # de columnas
     )
@@ -109,15 +103,14 @@ def generar_pdf_tabla(datos: list[dict], titulo: str) -> BytesIO:
     layout.add(tabla) # Agregar tabla al layout
 
     # Guardar en buffer en memoria
-    PDF.dumps(buffer, doc)
-    buffer.seek(0)  # volver al inicio del stream
+    PDF.dumps(buffer, doc)  # toma el documento PDF ya construido y lo serializa (lo convierte en bytes reales de un PDF)
+    buffer.seek(0)  # reposiciono el puntero al inicio para que pueda leerse correctamente
     return buffer
 
 # Convertir lista de turnos a lista de diccionarios
 def turnos_to_dict(turnos):
     return [
         {
-            "id": t.id,
             "fecha": str(t.fecha),
             "hora": str(t.hora),
             "estado": t.estado,
@@ -138,11 +131,8 @@ def pdf_response(datos, titulo, nombre_archivo):
     )
 
 
-def generar_csv(datos, titulo=None):
+def generar_csv(datos):
     buffer_texto = io.StringIO()   # Crear buffer de texto en memoria
-
-    if titulo: buffer_texto.write(f"{titulo}\n\n") # Escribir título si se proporciona (por defecto none)
-
     df = pd.DataFrame(datos) # Convertir lista de diccionarios a DataFrame de pandas
     df.to_csv(buffer_texto, index=False, encoding="utf-8") # Escribir DataFrame en buffer de texto como CSV
 

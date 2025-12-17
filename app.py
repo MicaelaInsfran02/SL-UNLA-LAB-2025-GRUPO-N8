@@ -852,7 +852,7 @@ def descargar_pdf_estado_personas(
     return pdf_response(datos, titulo, nombre_archivo)
 
 
-#GET reportes: turnos cancelados por mes en PDF con paginación --------------------------
+#GET reportes: turnos cancelados por mes en PDF con paginación -------------------------- Micaela Insfran
 @app.get("/reportes/pdf/turnos-cancelados-por-mes")
 def descargar_pdf_turnos_cancelados_por_mes(
     anio: int = Query(..., description="Año en formato AAAA"), #parametro obligatorio
@@ -866,11 +866,11 @@ def descargar_pdf_turnos_cancelados_por_mes(
 
     # Consulta ORM con paginación
     turnos = (
-        db.query(Turno)
-        .options(joinedload(Turno.persona))
-        .filter(Turno.estado == "cancelado")
-        .filter(extract("year", Turno.fecha) == anio)
-        .filter(extract("month", Turno.fecha) == mes)
+        db.query(Turno)  #inicio la consulta sobre el modelo turno 
+        .options(joinedload(Turno.persona)) #cargamos la relacion con persona 
+        .filter(Turno.estado == "cancelado") # filtramos por turnos cancelados 
+        .filter(extract("year", Turno.fecha) == anio) # filtramos por año
+        .filter(extract("month", Turno.fecha) == mes) # filtramos por mes
         .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc()) # ordena por fecha, hora e id
         .offset(inicio) # indica desde qué registro empezar
         .limit(pagina_limite) # limita la cantidad de registros traídos
@@ -890,7 +890,7 @@ def descargar_pdf_turnos_cancelados_por_mes(
 
 
 
-#GET reportes: turnos por fecha en PDF con paginación --------------------------
+#GET reportes: turnos por fecha en PDF con paginación -------------------------- Micaela Insfran
 @app.get("/reportes/pdf/turnos-por-fecha")
 def descargar_pdf_turnos_por_fecha(
     fecha: date = Query(..., description="Fecha en formato AAAA-MM-DD"), #parametro obligatorio
@@ -905,7 +905,7 @@ def descargar_pdf_turnos_por_fecha(
     # Consulta ORM con paginación
     turnos = (
         db.query(Turno)
-        .options(joinedload(Turno.persona))
+        .options(joinedload(Turno.persona)) #trae las relaciones de persona con turno
         .filter(Turno.fecha == fecha)
         .order_by(Turno.hora.asc(), Turno.id.asc())
         .offset(inicio) # indica desde qué registro empezar
@@ -922,13 +922,14 @@ def descargar_pdf_turnos_por_fecha(
     return pdf_response(datos, f"Turnos del día {fecha} (página {pagina})", f"turnos_{fecha}_p{pagina}"
     )
 
-@app.get("/reportes/csv/turnos-por-fecha")
-def descargar_csv_turnos_por_fecha(
-    fecha: date = Query(..., description="Fecha en formato AAAA-MM-DD"),
+
+# GET reportes: turnos por persona en PDF con paginación -------------------------- Micaela Insfran
+@app.get("/reportes/pdf/turnos-por-persona")
+def descargar_pdf_turnos_por_persona(
+    dni: str = Query(..., description="DNI de la persona"),  # parametro obligatorio
     pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
     pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db) ):
     # Calcular desde qué registro empezar
     inicio = (pagina - 1) * pagina_limite
 
@@ -936,9 +937,85 @@ def descargar_csv_turnos_por_fecha(
     turnos = (
         db.query(Turno)
         .options(joinedload(Turno.persona))
+        .join(Persona)  # necesario para filtrar por DNI
+        .filter(Persona.dni == dni)
+        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc())
+        .offset(inicio)
+        .limit(pagina_limite)
+        .all()
+    )
+
+    # Validación: no hay turnos en esa página
+    if not turnos:
+        raise HTTPException( status_code=404, detail=f"No hay turnos para la persona con DNI {dni} en la página {pagina}")
+
+    # Transformar ORM a diccionario
+    datos = turnos_to_dict(turnos)
+
+    # Generar PDF y devolver respuesta
+    return pdf_response(
+        datos,
+        f"Turnos por persona - DNI {dni} (página {pagina})", f"turnos_por_persona_{dni}_p{pagina}"
+    )
+
+# reportes: turnos por persona en CSV con paginación -------------------------- Micaela Insfran
+@app.get("/reportes/csv/turnos-por-persona")
+def descargar_csv_turnos_por_persona(
+    dni: str = Query(..., description="DNI de la persona"), #parametro obligatorio
+    pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
+    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
+    db: Session = Depends(get_db) ):
+
+    # Calcular desde qué registro empezar
+    inicio = (pagina - 1) * pagina_limite
+
+    # Consulta ORM con paginación
+    turnos = (
+        db.query(Turno)
+        .options(joinedload(Turno.persona))  # trae la relación persona
+        .join(Persona)                       # necesario para filtrar por DNI
+        .filter(Persona.dni == dni)
+        .order_by(Turno.fecha.asc(), Turno.hora.asc(), Turno.id.asc())
+        .offset(inicio)
+        .limit(pagina_limite)
+        .all() )
+
+    if not turnos:
+        raise HTTPException(
+            status_code=404, detail=f"No hay turnos para la persona con DNI {dni} en la página {pagina}" )
+
+    # Transformar ORM → dict
+    datos = turnos_to_dict(turnos)
+
+    # Generar CSV en memoria con Pandas
+    csv_buffer = generar_csv(datos)
+
+    # Devolver archivo CSV
+    return StreamingResponse(
+        csv_buffer,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=turnos_persona_{dni}_p{pagina}.csv"
+        }
+    )
+
+# reportes: turnos por fecha en CSV con paginación -------------------------- Micaela Insfran
+@app.get("/reportes/csv/turnos-por-fecha")
+def descargar_csv_turnos_por_fecha(
+    fecha: date = Query(..., description="Fecha en formato AAAA-MM-DD"),
+    pagina: int = Query(1, ge=1, description="Número de página (>=1)"),
+    pagina_limite: int = Query(20, ge=1, le=20, description="Cantidad de registros por página"),
+    db: Session = Depends(get_db) ):
+    # Calcular desde qué registro empezar
+    inicio = (pagina - 1) * pagina_limite
+
+    # Consulta ORM con paginación
+    turnos = (
+        db.query(Turno)
+        .options(joinedload(Turno.persona)) #trae las relaciones de persona con turno
         .filter(Turno.fecha == fecha)
         .order_by(Turno.hora.asc(), Turno.id.asc())
-        .offset(inicio)
+        .offset(inicio) # indica desde qué registro empezar
         .limit(pagina_limite)
         .all()
     )
@@ -951,7 +1028,7 @@ def descargar_csv_turnos_por_fecha(
     datos = turnos_to_dict(turnos)
 
     # Generar CSV en memoria con Pandas
-    csv_buffer = generar_csv( datos, titulo=f"Turnos del día {fecha} (página {pagina})")
+    csv_buffer = generar_csv(datos)
 
     # Devolver archivo CSV
     return StreamingResponse(
@@ -1078,7 +1155,7 @@ def descargar_pdf_turnos_confirmados(
     # que devuelve un StreamingResponse con el archivo PDF
     return pdf_response(datos, titulo, nombre_archivo)
 
-
+# reportes: turnos cancelados por mes en CSV con paginación -------------------------- Micaela Insfran
 @app.get("/reportes/csv/turnos-cancelados-por-mes")
 def descargar_csv_turnos_cancelados_por_mes(
     anio: int = Query(..., description="Año en formato AAAA"),
@@ -1110,7 +1187,7 @@ def descargar_csv_turnos_cancelados_por_mes(
     datos = turnos_to_dict(turnos)
 
     # Generar CSV en memoria con Pandas
-    csv_buffer = generar_csv( datos, titulo=f"Turnos cancelados - {anio}-{mes:02d} (Página {pagina})")
+    csv_buffer = generar_csv( datos)
 
     # Devolver archivo CSV
     return StreamingResponse(

@@ -76,9 +76,9 @@ Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 
 ## Postman
 
-El archivo de colección de Postman debe estar en la **raíz del proyecto**:
+El archivo de colección de Postman se encuentra en la **raíz del proyecto**:
 
-- `Postman Turnos Grupo 8.postman_collection`
+- `Postman de Turnos Grupo - 8.postman_collection`
 
 ---
 
